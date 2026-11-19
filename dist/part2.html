@@ -1,0 +1,1305 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>語法偏誤任務單 · 網站 2</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;700;900&display=swap">
+<style>
+/* 和「詞網與AI偏誤工作坊」同一套版面：上方組別列＋頁籤，一次一頁（最寬 860px），下方上一頁／下一頁。教師端放寬到 1100px。 */
+[hidden]{display:none!important} img{max-width:100%}
+:root{
+  --bg:#f3f5f7; --surface:#ffffff; --surface2:#e8edf1; --fg:#17212b; --muted:#566271; --line:#d0d8e0;
+  --accent:#1d5f7a; --accent-fg:#ffffff; --accent-soft:#d9eaf2;
+  --mark:#c0392b; --mark-soft:#fbe3df;
+  --human:#1f7a5c; --human-soft:#dcf0e6; --ai:#6b3fb8; --ai-soft:#e9e0f8;
+  --ok:#2e7d32; --warn:#9a5b00; --warn-soft:#fbefd9;
+  --font-body:"Noto Sans TC",-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;
+  --font-display:"Noto Serif TC","Songti TC","PMingLiU",Georgia,serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#121820; --surface:#1b222b; --surface2:#252e39; --fg:#e9eef3; --muted:#9ba7b4; --line:#34404c;
+  --accent:#6fb6d4; --accent-fg:#0f1a21; --accent-soft:#1d3540;
+  --mark:#ff8a75; --mark-soft:#4a2520;
+  --human:#6fd0a8; --human-soft:#1d3a2e; --ai:#c4a7f5; --ai-soft:#332647;
+  --ok:#7ad48a; --warn:#f0b24a; --warn-soft:#3d2e14; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#121820; --surface:#1b222b; --surface2:#252e39; --fg:#e9eef3; --muted:#9ba7b4; --line:#34404c;
+  --accent:#6fb6d4; --accent-fg:#0f1a21; --accent-soft:#1d3540;
+  --mark:#ff8a75; --mark-soft:#4a2520;
+  --human:#6fd0a8; --human-soft:#1d3a2e; --ai:#c4a7f5; --ai-soft:#332647;
+  --ok:#7ad48a; --warn:#f0b24a; --warn-soft:#3d2e14; color-scheme:dark }
+
+*{box-sizing:border-box}
+html,body{min-height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:17px;line-height:1.7;margin:0}
+h1,h2,h3{font-family:var(--font-display);line-height:1.3;text-wrap:balance;margin:0}
+h1{font-size:clamp(1.7rem,5vw,2.4rem);font-weight:900}
+h2{font-size:clamp(1.4rem,3.6vw,2rem);font-weight:700}
+h3{font-size:1.1rem;font-weight:700}
+p{margin:0;max-width:65ch}
+a{color:var(--accent)}
+code{font-size:.9em;background:var(--surface2);padding:0 4px;border-radius:4px}
+.muted{color:var(--muted)} .small{font-size:.85rem}
+.kicker{font-size:.8rem;letter-spacing:.1em;color:var(--accent);font-weight:700}
+.kicker.human{color:var(--human)} .kicker.ai{color:var(--ai)} .kicker.warn{color:var(--warn)}
+.lead{font-size:1.08rem;color:var(--muted)}
+.wrap{width:100%;max-width:860px;margin:0 auto;padding-inline:16px;padding-block:24px 32px}
+.wrap.wide{max-width:1100px}
+.page{display:flex;flex-direction:column;gap:18px}
+.stack{display:flex;flex-direction:column;gap:12px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.between{justify-content:space-between}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.grid>*{min-width:0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;min-width:0}
+.card.soft{background:var(--surface2);border-color:transparent}
+.card.human{border-top:5px solid var(--human)} .card.ai{border-top:5px solid var(--ai)}
+.chip{display:inline-block;border-radius:999px;padding:1px 10px;font-size:.8rem;font-weight:600;background:var(--surface2);color:var(--fg)}
+.chip.human{background:var(--human-soft);color:var(--human)} .chip.ai{background:var(--ai-soft);color:var(--ai)} .chip.acc{background:var(--accent-soft);color:var(--accent)} .chip.mark{background:var(--mark-soft);color:var(--mark)}
+
+/* top bars */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line)}
+.top-in{max-width:1100px;margin:0 auto;padding:8px 16px;display:flex;flex-direction:column;gap:6px}
+.top .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.top .gname{font-family:var(--font-display);font-weight:700;font-size:1.1rem}
+.rail{display:flex;gap:6px;overflow-x:auto;scrollbar-width:thin}
+.rail button{flex:0 0 auto;border:0;background:transparent;color:var(--muted);border-radius:999px;padding:6px 12px;font:inherit;font-size:.82rem;font-weight:600;white-space:nowrap;cursor:pointer}
+.rail button.on{background:var(--accent);color:var(--accent-fg)}
+.rail button.ai.on{background:var(--ai);color:var(--bg)}
+.rail button.done::after{content:" ✓"}
+.rail button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.foot{position:sticky;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:8px 16px calc(8px + env(safe-area-inset-bottom,0px));z-index:4}
+.foot-in{max-width:860px;margin:0 auto;display:flex;gap:10px;align-items:center;justify-content:space-between}
+.foot .pos{font-size:.85rem;color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* controls */
+button{font:inherit;cursor:pointer}
+.btn{border:1px solid var(--accent);background:var(--accent);color:var(--accent-fg);border-radius:8px;padding:9px 16px;font-weight:600;font-size:.95rem;text-decoration:none;display:inline-block}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.sm{padding:5px 11px;font-size:.82rem}
+.btn.ai{background:var(--ai);border-color:var(--ai);color:var(--bg)}
+.btn.ai.ghost{background:transparent;color:var(--ai)}
+.btn.human{background:var(--human);border-color:var(--human);color:var(--bg)}
+.btn:disabled{opacity:.45;cursor:default}
+.btn:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+.pill{display:inline-flex;align-items:center;border-radius:999px;padding:2px 10px;font-size:.78rem;font-weight:600;border:1px solid var(--line);background:var(--surface2)}
+.pill.ok{color:var(--ok)} .pill.warn{color:var(--warn)}
+label.f,.f{display:flex;flex-direction:column;gap:6px;font-weight:600}
+.f .hint{font-weight:400;color:var(--muted);font-size:.85rem}
+input[type=text],input[type=password],select,textarea{font:inherit;font-weight:400;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;width:100%;min-width:0}
+textarea{resize:vertical;line-height:1.6}
+textarea.code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.8rem;line-height:1.45}
+input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+input[readonly],textarea[readonly]{background:var(--surface2)}
+.dirty{border-color:var(--warn)!important}
+::placeholder{color:var(--muted);opacity:.75}
+.status{font-size:.8rem;color:var(--muted)}
+.status.ok{color:var(--ok)} .status.warn{color:var(--warn)}
+.savebar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding-top:12px}
+/* radio / checkbox chips */
+.opts{display:flex;flex-wrap:wrap;gap:6px}
+.opts label{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:4px 12px;font-weight:500;font-size:.9rem;cursor:pointer;background:var(--surface)}
+.opts input{position:absolute;opacity:0;pointer-events:none}
+.opts label:has(input:checked){background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.opts label:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+.opts label:has(input:disabled){cursor:default}
+.checks{display:flex;flex-direction:column;gap:6px}
+.checks label{display:grid;grid-template-columns:22px 1fr;gap:8px;align-items:start;font-weight:400;cursor:pointer;padding:6px 8px;border-radius:8px}
+.checks label:has(input:checked){background:var(--accent-soft)}
+.checks input{width:18px;height:18px;margin:4px 0 0;accent-color:var(--accent)}
+
+/* steps */
+.todo{counter-reset:t;list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:12px}
+.todo li{counter-increment:t;display:grid;grid-template-columns:34px 1fr;gap:12px}
+.todo li>div{min-width:0}
+.todo li::before{content:counter(t);width:30px;height:30px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-weight:700;display:flex;align-items:center;justify-content:center}
+.todo.ai li::before{background:var(--ai-soft);color:var(--ai)}
+
+/* text + tokens */
+.sent{font-family:var(--font-display);font-size:1.12rem;line-height:2.1}
+.tok{display:inline-block;padding:0 2px;border-radius:4px;border:1px solid transparent;background:none;font:inherit;color:inherit;line-height:1.6;margin:2px 0;cursor:pointer;position:relative}
+.tok.sp{min-width:.7em}
+button.tok{border-bottom:1px dashed var(--line)}
+button.tok:hover{border-color:var(--accent)}
+button.tok:disabled{cursor:default;border-bottom-color:transparent}
+.tok.noted{box-shadow:inset 0 -3px 0 var(--mark)}
+.tok.sel{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)!important;font-weight:700}
+.tok.hl{background:var(--mark-soft);color:var(--mark)}
+.tok:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.tok sup{font-family:var(--font-body);font-size:.6em;font-weight:700;color:var(--mark);margin-left:1px}
+span.tok{cursor:default}
+.selbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;border-top:1px solid var(--line);padding-top:10px}
+.selbar .what{flex:1 1 200px;min-width:0}
+.note{border-left:4px solid var(--mark)}
+.nn{display:inline-flex;width:26px;height:26px;border-radius:50%;background:var(--mark-soft);color:var(--mark);font-weight:700;align-items:center;justify-content:center;font-size:.85rem;flex:0 0 auto}
+.mk{font-family:var(--font-display);color:var(--mark)}
+.nlist{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+.nlist li{display:grid;grid-template-columns:26px 1fr;gap:8px;font-size:.92rem}
+
+/* misc */
+.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.flow>div{border-radius:10px;padding:12px;background:var(--surface);border:1px solid var(--line)}
+.flow>div.off{background:transparent;border-style:dashed;color:var(--muted)}
+.flow b{display:block;font-family:var(--font-display);font-size:1.05rem}
+.flow .t{font-variant-numeric:tabular-nums;font-size:.8rem;color:var(--muted)}
+.tpl{position:relative;background:var(--surface2);border-radius:8px;padding:12px 84px 12px 12px;font-size:.92rem;white-space:pre-wrap;word-break:break-word;line-height:1.6;border:1px dashed var(--line)}
+.tpl .copy{position:absolute;top:8px;right:8px}
+.must{border:2px solid var(--warn);background:var(--warn-soft);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+details.help summary{cursor:pointer;font-weight:600;color:var(--accent)}
+.banner{border-left:4px solid var(--accent);background:var(--accent-soft);padding:8px 14px;border-radius:8px;font-size:.92rem;display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;margin-bottom:16px}
+.timer{font-variant-numeric:tabular-nums;font-weight:700}
+.score{display:flex;gap:8px;flex-wrap:wrap}
+.score label{display:flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-weight:700;cursor:pointer;font-family:var(--font-display);font-size:1.2rem}
+.score input{position:absolute;opacity:0;pointer-events:none}
+.score label:has(input:checked){background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.score label:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+.lockbox{border:1px solid var(--human);background:var(--human-soft);color:var(--fg);border-radius:10px;padding:10px 14px;font-size:.92rem}
+.ans{background:var(--surface2);border-radius:8px;padding:10px 12px;white-space:pre-wrap;word-break:break-word;font-size:.95rem}
+.ans.empty{color:var(--muted);font-style:italic}
+.ans.long{max-height:16em;overflow:auto;font-size:.88rem}
+.refbox{border:1px dashed var(--warn);background:var(--warn-soft);border-radius:10px;padding:10px 14px;font-size:.9rem;white-space:pre-wrap}
+
+/* login */
+.gpick{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px}
+.gpick button{border:1px solid var(--line);background:var(--surface);color:var(--fg);border-radius:10px;padding:12px 8px;text-align:center}
+.gpick button strong{display:block;font-family:var(--font-display);font-size:1.4rem}
+.gpick button span{font-size:.75rem;color:var(--muted)}
+.gpick button:hover{border-color:var(--accent)}
+.gpick button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* HTML 成品 */
+.drop{display:flex;flex-wrap:wrap;gap:10px;align-items:center;border:2px dashed var(--line);border-radius:10px;padding:14px;background:var(--surface)}
+.drop.over,.drop:focus-visible{border-color:var(--ai);outline:none}
+.pv{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+.pv iframe{display:block;width:100%;height:460px;border:0;background:#fff}
+.pv .pvmsg{padding:24px;color:#566271;font-size:.9rem;text-align:center}
+.pv.mini{aspect-ratio:4/3;cursor:zoom-in}
+.pv.mini iframe{position:absolute;top:0;left:0;width:250%;height:250%;transform:scale(.4);transform-origin:0 0;pointer-events:none}
+.pv.mini .pvmsg{padding:12px}
+.pv.mini.none{aspect-ratio:auto;cursor:default;background:var(--surface2);border-style:dashed}
+.pv.mini.none .pvmsg{color:var(--muted)}
+.pvbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.overlay{position:fixed;inset:0;z-index:30;background:rgba(10,14,20,.6);display:flex;flex-direction:column;padding:12px}
+.overlay .ohead{display:flex;gap:8px;align-items:center;justify-content:space-between;background:var(--surface);color:var(--fg);border-radius:10px 10px 0 0;padding:8px 12px}
+.overlay iframe{flex:1;width:100%;border:0;background:#fff;border-radius:0 0 10px 10px}
+.shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.shot{margin:0;display:flex;flex-direction:column;gap:4px;min-width:0}
+.shot a{display:block;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface2);aspect-ratio:4/3}
+.shot img{width:100%;height:100%;object-fit:cover;object-position:top;display:block}
+
+/* teacher */
+.tbl{width:100%;border-collapse:collapse;font-size:.92rem}
+.tbl th,.tbl td{border-bottom:1px solid var(--line);padding:8px 6px;text-align:left;vertical-align:top}
+.tbl th{font-weight:600;color:var(--muted);font-size:.8rem}
+.scroll{overflow-x:auto}
+.ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.gcell{border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--surface);text-align:left;color:var(--fg)}
+.gcell .n{font-family:var(--font-display);font-size:1.2rem;font-weight:700}
+.dots{display:flex;gap:4px;margin-top:6px}
+.dots span{flex:1;height:6px;border-radius:3px;background:var(--line)}
+.dots span.on{background:var(--ok)}
+.bars{display:flex;flex-direction:column;gap:8px}
+.bars .b{display:grid;grid-template-columns:minmax(0,1fr) 120px 3em;gap:10px;align-items:center;font-size:.92rem}
+.bars .track{height:10px;border-radius:5px;background:var(--surface2);overflow:hidden}
+.bars .fill{height:100%;background:var(--accent)}
+.bars .num{font-variant-numeric:tabular-nums;color:var(--muted);text-align:right}
+.qrs{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.qr{display:flex;gap:12px;align-items:center}
+.qr .code{background:#fff;padding:6px;border-radius:6px;flex:0 0 auto;width:132px;height:132px}
+.qr .code img,.qr .code canvas{width:120px!important;height:120px!important}
+.wall{display:flex;flex-direction:column;gap:14px}
+.wall .pair{display:grid;grid-template-columns:5em 1fr 1fr;gap:10px;align-items:start}
+.proj .sent{font-size:1.45rem}
+.toast{position:fixed;left:50%;bottom:calc(76px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:8px 16px;border-radius:999px;font-size:.9rem;opacity:0;transition:opacity .2s;pointer-events:none;z-index:40;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+@media (max-width:560px){ .wall .pair{grid-template-columns:1fr} .bars .b{grid-template-columns:minmax(0,1fr) 70px 2.5em} }
+@media (prefers-reduced-motion:no-preference){ .page{animation:in .22s ease-out} @keyframes in{from{opacity:.4;transform:translateY(6px)}to{opacity:1;transform:none}} }
+@media (prefers-reduced-motion:reduce){ .toast{transition:none} }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script>window.SYN_PART=2;</script>
+<script>
+// =====================================================================
+//  AI 輔助華語分級課室語言設計與語法分析－偏誤語料 · 課堂設定檔
+//  這是唯一需要編輯的檔案。改完後執行 `python3 build.py`，
+//  dist/part1.html（網站 1）與 dist/part2.html（網站 2）會自動更新。
+//  （直接用瀏覽器開 src/tasks.html 也會讀到這裡的設定；加 ?part=2 看網站 2。）
+// =====================================================================
+window.SYN_CONFIG = {
+
+  // ---- 基本 ----
+  title: 'AI 輔助華語分級課室語言設計與語法分析',
+  subtitle: '偏誤語料',
+  teacherCode: 'syn2026',          // 教師端通關碼
+  totalGroups: 15,                 // 全班組數
+  coctUrl: 'https://coct.naer.edu.tw/segment.jsp',   // 華語分級斷詞工具
+  // 教師端 QR code 連到的兩個學生網址
+  part1Url: 'https://differe94nt.github.io/HUA_syntax/dist/part1.html',
+  part2Url: 'https://differe94nt.github.io/HUA_syntax/dist/part2.html',
+
+  // ---- 學生答案要存到哪裡 ----
+  // 填了 Google Apps Script 網址：答案存到你的 Google 試算表，HTML 成品與截圖存到你的雲端硬碟
+  // （設定步驟見 backend/README.md）。空白：只存在學生自己的裝置，最後用「複製本組答案」交卷。
+  sheetEndpoint: '',               // 例：'https://script.google.com/macros/s/XXXX/exec'
+  sheetPollSeconds: 8,
+
+  // ---- 階段（教師端「通知全班目前階段」與學生端橫幅）----
+  // part：在哪一個網站。1–3 在網站 1，4–5 在網站 2。開場說明 2 分鐘不列在這裡。
+  stages: [
+    { n: 1, title: '人工標註', min: 8, part: 1 },
+    { n: 2, title: '引導 AI',  min: 7, part: 1 },
+    { n: 3, title: '檢核 AI',  min: 5, part: 1 },
+    { n: 4, title: '回饋修正', min: 6, part: 2 },
+    { n: 5, title: '一句話',   min: 2, part: 2 },
+  ],
+
+  // ---- 階段 2 唯一的規定：prompt 最後一定要加的一句話（學生可以一鍵複製）----
+  requiredLine: '最後，請把做好的工具存成一個完整的 HTML 檔讓我下載；如果沒辦法下載，請給我一段完整、可以直接複製的 HTML 程式碼（從 <!DOCTYPE html> 一直到 </html>）。',
+
+  // ---- 分級對照（階段 3 用 COCT 檢查 AI 給學習者的說明）----
+  levels: {
+    '初級': 'TBCL 第 1–3 級（基礎）',
+    '中級': 'TBCL 第 4–5 級（進階）',
+    '高級': 'TBCL 第 6–7 級（精熟）',
+  },
+
+  // ---- 偏誤類型（階段 1 標註用）----
+  errorTypes: ['遺漏', '誤加', '誤代', '錯序', '其他'],
+  errorTypeHint: '遺漏＝少了該有的成分；誤加＝多了不該有的成分；誤代＝用錯了（詞、字、結構）；錯序＝順序錯了；其他＝標點、語體等。',
+
+  // ---- 偏誤語料 ----
+  // toks 用「|」斷開，只是為了讓學生點選；學生看到的原文就是全部接起來的樣子，所以標點、空格都要保留。
+  // ref 是教師端的參考（草稿），學生畫面看不到；請依你的判斷修改。
+  texts: [
+    { id: 1, level: '中級', groups: [1, 2, 3, 4],
+      toks: '有|一些|話|十分|難以言表|。|一句|，|兩句|話|可能|不太|清清楚楚|的|說|。|那麼|我|長話短說|一下|：|“|我|很|喜歡|住|在|台灣|，| |在|這兒|遇見|得|很多|非常|好|的|人|，|像|我|老師|是|一個|又|貼心|又|厲害|的|人|，|讓|我|明白|-|這|條|路|我|選|得|對|了|”|～～',
+      ref: '・不太清清楚楚的說 → 說不（太）清楚：重疊形容詞不受程度副詞修飾；這裡要用可能補語。\n・一句，兩句話 → 一兩句話。\n・長話短說一下 → 長話短說（四字格後不加「一下」）。\n・遇見得很多 → 遇見了很多（「得」誤代「了」）。\n・選得對了 → 選對了（結果補語）／選得很對。\n・可討論：像我老師（口語可省「的」）、十分難以言表。\n・標點：“ ”→「 」、「， 在」多了空格、「明白-」、結尾「～～」。',
+    },
+    { id: 2, level: '高級', groups: [5, 6, 7, 8],
+      toks: '一年|之中|我|最|喜歡|的|季節|是|秋天|。|秋天|不但|天氣|涼爽|，|而且|很|適合|逛街|。|它|的|味道|是|充滿|快樂|地|。|秋天|的|時候|，|我|比較|愛|去|體驗|生活|與|各地|的|文化|。|去年|的|秋天|，|我|有|去|台東|東海岸|那邊|觀賞|超|夢幻|的|月光海|藝術節|。|對|我|而言|，|秋季|是|豐盛|與|美好|的|季節|。',
+      ref: '・它的味道是充滿快樂地 → 它的味道是充滿快樂的（「是……的」；「地」誤代「的」）。\n・體驗生活與各地的文化 → 體驗各地的生活與文化（搭配、語序）。\n・可討論：我有去（臺灣華語常見「有＋V」，書面語作「我去了」）——是偏誤還是地區用法？\n・可討論：語體不一致，「超夢幻」「那邊」偏口語。\n・看 AI 會不會把「我有去」直接判錯，並改成更書面的說法。',
+    },
+    { id: 3, level: '初級', groups: [9, 10, 11, 12],
+      toks: '一年|有|四|個|季節|，|冬天|是|我|最|喜歡|的|季節|。|我|喜歡|冬天|的|浪漫|氣氛|和|涼爽|的|天氣|。|冬天|也|是|節慶|的|季節|，|是|全家|團聚|最|多|的|時候|。|想一想|，|當|我們|在|寒冷|的|天氣|裡|回到|家|時|，|打開|家門|歡迎|我們|是|深愛|的|家人|，|這麼|溫暖|的|生活|還|不是|很|讓|人|喜愛|嗎|？|冬天|是|讓|我|覺得|最|幸福|的|季節|,|真的|期待|今年|的|冬天|.',
+      ref: '・打開家門歡迎我們是深愛的家人 → 打開家門歡迎我們的，是深愛的家人（遺漏「的」）。\n・是全家團聚最多的時候 → 是全家人最常團聚的時候。\n・還不是很讓人喜愛嗎 → 不是很讓人喜愛嗎／難道不讓人喜愛嗎（「還」多餘）。\n・真的期待今年的冬天 → 我真的很期待今年的冬天（遺漏主語）。\n・可討論：冬天＋涼爽（詞義）。\n・標點：半形「,」「.」→「，」「。」。\n・程度：浪漫、氣氛、節慶、團聚、深愛…用詞不像初級，可以用 COCT 驗證標示的等級。',
+    },
+    { id: 4, level: '初級', groups: [13, 14, 15],
+      toks: '我|是|小明|，|今年| |21| |歲|。|我|家|有|5|口|人|：|爸爸|、|媽媽|、|姊姊|、|弟弟|和|我|。|我|喜歡|看|電影|、|閱讀|和|旅遊|。|我|非常|喜歡|台灣|文化|，|所以|我|去|台灣|學習|和|發展|自己|。|目前|我|在|大學|就讀|。|我|很|慶幸|自己|選擇|了|去|台灣|讀書|。',
+      ref: '・幾乎沒有語法錯誤，重點是「判斷什麼不是錯」。\n・可討論：人在臺灣寫作時，「去台灣」→「來臺灣」（指示觀點）。\n・可討論：發展自己（搭配略不自然）、「21」前後的空格。\n・看 AI 會不會過度修改本來就正確的句子。',
+    },
+  ],
+
+  // ---- 網站 2：好的 prompt 檢核清單 ----
+  checklist: [
+    '說清楚 AI 的角色和任務（例如：你是華語老師，要分析偏誤並做教學工具）',
+    '說清楚學習者的程度（初級／中級／高級）和背景',
+    '完整貼上語料原文，並要求 AI 不要改動原文',
+    '給分析的框架：偏誤類型（遺漏、誤加、誤代、錯序）、要標出位置',
+    '要求說明理由或語法點，不只給改法',
+    '限制給學習者看的用語難度（例如只用 TBCL 某一級以內的詞、不用術語）',
+    '提醒 AI 不要過度修改：分清楚「錯誤」和「可以接受的說法」',
+    '交代輔具的樣子：給誰用、有什麼功能、幾題練習、什麼題型',
+    '指定輸出格式：一個完整的 HTML 檔',
+    '請 AI 標出不確定的地方，或先問我們問題再做',
+  ],
+
+  // ---- 網站 2：AI 修正時的偏好（反思用，可複選）----
+  biases: [
+    '改成更書面、更「標準」的說法',
+    '把地區用法或口語當成錯誤（例如臺灣常說的「我有去」）',
+    '整句重寫，而不是只改錯的地方',
+    '改了本來沒有錯的地方（過度修正）',
+    '給學習者的說明用了太難的詞或語法術語',
+    '只給答案，沒有說明為什麼',
+    '漏掉某一類錯誤（例如標點、語序）',
+  ],
+};
+</script>
+<script>
+(function(){
+'use strict';
+// ====== 設定：全部來自 content/config.js ======
+const C=window.SYN_CONFIG||{};
+// 網站 1 或網站 2：build.py 會寫入 window.SYN_PART；直接開 src/ 時用 ?part=2 切換
+const PART=String(window.SYN_PART||new URLSearchParams(location.search).get('part')||'1')==='2'?2:1;
+const TEACHER_CODE=C.teacherCode||'syn2026';
+const TOTAL_GROUPS=C.totalGroups||15;
+const COCT_URL=C.coctUrl||'https://coct.naer.edu.tw/segment.jsp';
+const PART_URL={1:C.part1Url||'',2:C.part2Url||''};
+const REQUIRED_LINE=C.requiredLine||'';
+const LEVELS=C.levels||{};
+const TYPES=C.errorTypes||['遺漏','誤加','誤代','錯序','其他'];
+const CHECKLIST=C.checklist||[];
+const BIASES=C.biases||[];
+const LLMS=['ChatGPT','Claude','Gemini','Copilot','其他'];
+const STAGES=C.stages||[];
+const TEXTS=(C.texts||[]).map(t=>{ const tokens=t.toks.split('|'); return Object.assign({},t,{tokens,text:tokens.join('')}) });
+const textFor=g=>TEXTS.find(t=>t.groups.includes(g))||TEXTS[0];
+const LS={ group:'syntask:group', data:'syntask:g', draft:'syntask:draft', teacher:'syntask:teacher', page:'syntask:page'+PART, html:'syntask:html:' };
+const MAXLEN=200000, MAX_HTML=1500000, MAX_SHOTS=4;
+
+// 學生端頁面
+const PAGES=PART===1?[
+  {id:'start', nav:'開始'},
+  {id:'s1',    nav:'1 人工標註', sec:'s1'},
+  {id:'ai1',   nav:'2 引導 AI', sec:'ai1', cls:'ai'},
+  {id:'s3',    nav:'3 檢核 AI', sec:'s3'},
+]:[
+  {id:'recap', nav:'回顧'},
+  {id:'p2',    nav:'4-1 檢視 prompt', sec:'p2'},
+  {id:'ai2',   nav:'4-2 回饋修正', sec:'ai2', cls:'ai'},
+  {id:'end',   nav:'5 一句話', sec:'end'},
+];
+// 每一段存哪些欄位（儲存時從草稿或資料裡收集）
+const FIELDS={
+  s1:['notes','guide'],
+  ai1:['llm','llmNote','prompt','reply'],
+  s3:['hit','miss','over','coctWords','coctNote','score','rethink'],
+  p2:['had','missing','bias','biasNote'],
+  ai2:['llm','llmNote','prompt','reply','change'],
+  end:['share','redo'],
+};
+const SECS=Object.keys(FIELDS);
+// 匯出用的欄位（教師端 CSV；backend/google_sheets.gs 的試算表欄位也一樣）
+const EXPORT_COLUMNS=[['組'],['語料'],['程度'],
+  ['1標註','s1.notes'],['1標註數'],['1怎麼指導','s1.guide'],['1鎖定時間','s1.lockedAt'],
+  ['2用哪個AI','ai1.llm'],['2AI版本','ai1.llmNote'],['2prompt','ai1.prompt'],['2AI分析','ai1.reply'],['2HTML第一版','files.v1'],['2截圖','shots.v1'],
+  ['3都找到','s3.hit'],['3AI漏掉','s3.miss'],['3AI誤判','s3.over'],['3超出程度的詞','s3.coctWords'],['3分級觀察','s3.coctNote'],['3AI分數','s3.score'],['3想改標註','s3.rethink'],
+  ['4prompt有做到','p2.had'],['4最想補上','p2.missing'],['4AI偏好','p2.bias'],['4偏好例子','p2.biasNote'],
+  ['4用哪個AI','ai2.llm'],['4AI版本','ai2.llmNote'],['4修正指令','ai2.prompt'],['4AI回答','ai2.reply'],['4HTML第二版','files.v2'],['4截圖','shots.v2'],['4改善與限制','ai2.change'],
+  ['5一句話','end.share'],['5重來的prompt','end.redo'],['更新時間','updatedAt']];
+
+// ====== 小工具 ======
+const $=(s,el)=>(el||document).querySelector(s);
+const $$=(s,el)=>[...(el||document).querySelectorAll(s)];
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function lsGet(k){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):null }catch(e){ return null } }
+function lsSet(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); return true }catch(e){ return false } }
+function lsDel(k){ try{ localStorage.removeItem(k) }catch(e){} }
+const now=()=>new Date().toISOString();
+const fmtTime=iso=>iso?new Date(iso).toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'}):'';
+const mmss=sec=>{ sec=Math.max(0,Math.round(sec)); return Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0') };
+const kb=n=>n>=1024*1024?(n/1024/1024).toFixed(1)+' MB':Math.max(1,Math.round(n/1024))+' KB';
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+let toastT; function toast(msg){ const t=$('#toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200) }
+function copyText(text){
+  const fallback=()=>{ const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); toast('已複製') }catch(e){ toast('請手動選取複製') } ta.remove(); };
+  if(!navigator.clipboard||!navigator.clipboard.writeText){ fallback(); return Promise.resolve() }
+  return navigator.clipboard.writeText(text).then(()=>toast('已複製'),fallback);
+}
+const getPath=(o,p)=>p.split('.').reduce((a,k)=>a==null?a:a[k],o);
+const clone=o=>o==null?o:JSON.parse(JSON.stringify(o));
+const safeUrl=u=>/^https?:\/\//i.test(String(u||''))?String(u):'';
+const noop=()=>{};
+// 標註：把點選的詞接起來，不相連的地方用「…」
+function spanText(toks,tokens){ const s=[...toks].sort((a,b)=>a-b); let out=''; s.forEach((i,j)=>{ if(j&&i!==s[j-1]+1) out+='…'; out+=tokens[i]||'' }); return out }
+const noteLine=(n,i)=>`${i+1}. 【${n.type||'？'}】${n.text||''} → ${n.fix||''}${n.why?'｜'+n.why:''}`;
+// 匯出／摘要用：把各種值變成一格文字
+function plain(v){
+  if(v==null) return '';
+  if(Array.isArray(v)){
+    if(v.length&&v[0]&&typeof v[0]==='object'&&'toks' in v[0]) return v.map(noteLine).join('\n');
+    if(v.length&&v[0]&&typeof v[0]==='object') return v.map(x=>x.url||x.name||'').join('\n');
+    return v.join('、');
+  }
+  if(typeof v==='object') return v.url||v.name||'';
+  return String(v);
+}
+
+// ====== 儲存後端 ======
+// 兩種後端共用同一組介面，其他程式只透過 S.store 存取：
+//   saveGroup(id,data) saveSettings(data) watchGroup(id,cb) watchGroups(cb) watchSettings(cb)
+//   saveHtml({group,slot,name,source,html}) → files    getHtml(group,slot) → html
+//   upload({group,slot,name,mime,data}) → shots        unshot(group,slot,fileId) → shots（只有試算表有）
+function makeLocalStore(){
+  return { mode:'local',
+    async saveGroup(id,data){ lsSet(LS.data+id.slice(1),data) },
+    async saveSettings(){ throw new Error('local') },
+    watchGroup(){ return noop }, watchGroups(){ return noop }, watchSettings(){ return noop },
+    async saveHtml(o){
+      const meta={name:o.name,size:o.html.length,source:o.source,savedAt:now(),local:true};
+      if(!lsSet(LS.html+o.group+':'+o.slot,o.html)) meta.memoryOnly=true;
+      return Object.assign({},S.data.files,{[o.slot]:meta});
+    },
+    async getHtml(group,slot){ const h=lsGet(LS.html+group+':'+slot); if(h==null) throw new Error('這台裝置上沒有這個檔案'); return h },
+  };
+}
+// Google 試算表（Apps Script 網頁應用程式；程式碼在 backend/google_sheets.gs）。
+// 儲存＝POST JSON；更新＝定時 GET。POST 用 text/plain 可避開 CORS 預檢。
+function makeSheetStore(url){
+  const POLL=Math.max(3,+C.sheetPollSeconds||8)*1000;
+  let cache={groups:{},settings:{}}, timer=null, pulling=false;
+  const L={group:new Map(),groups:new Set(),settings:new Set()};
+  const withQ=q=>url+(url.includes('?')?'&':'?')+q;
+  async function post(body){
+    const r=await fetch(url,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(body)});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const j=await r.json(); if(!j.ok) throw new Error(j.error||'save failed'); return j;
+  }
+  async function get(q){
+    const r=await fetch(withQ(q+'&_='+Date.now()),{cache:'no-store'}); if(!r.ok) throw new Error('HTTP '+r.status);
+    const j=await r.json(); if(!j.ok) throw new Error(j.error||'load failed'); return j;
+  }
+  // 學生只抓自己這一組，只有教師端抓全班
+  function query(){
+    const ids=[...L.group.keys()].filter(id=>L.group.get(id).size);
+    if(L.groups.size||ids.length>1) return 'action=all';
+    return 'action=group&id='+encodeURIComponent(ids[0]||'none');
+  }
+  async function pull(){
+    if(pulling) return; pulling=true;
+    try{ const q=query(), j=await get(q);
+      if(q==='action=all') cache.groups=j.groups||{}; else Object.assign(cache.groups,j.groups||{});
+      cache.settings=j.settings||{}; notify(); }
+    finally{ pulling=false }
+  }
+  function notify(){
+    L.groups.forEach(cb=>cb(cache.groups));
+    L.settings.forEach(cb=>cb(cache.settings.class||{}));
+    L.group.forEach((set,id)=>{ if(cache.groups[id]) set.forEach(cb=>cb(clone(cache.groups[id]))) });
+  }
+  function ensurePolling(){ if(timer) return; timer=setInterval(()=>{ if(document.visibilityState==='visible') pull().catch(noop) },POLL) }
+  const sub=(set,cb,initial)=>{ set.add(cb); if(initial!==undefined) cb(initial); ensurePolling(); pull().catch(noop); return ()=>set.delete(cb) };
+  // HTML 與截圖清單由試算表另外管理；這裡只更新快取
+  function patch(id,key,val){ const d=cache.groups[id]||{}; cache.groups[id]=Object.assign({},d,{[key]:val}) }
+  return { mode:'sheet',
+    async saveGroup(id,data){ await post({type:'group',id,data}); cache.groups[id]=clone(data); notify() },
+    async saveSettings(data){ await post({type:'settings',id:'class',data}); cache.settings.class=clone(data); notify() },
+    watchGroup(id,cb){ if(!L.group.has(id)) L.group.set(id,new Set()); return sub(L.group.get(id),cb,cache.groups[id]&&clone(cache.groups[id])) },
+    watchGroups:cb=>sub(L.groups,cb,cache.groups),
+    watchSettings:cb=>sub(L.settings,cb,cache.settings.class||{}),
+    async saveHtml(o){ const j=await post({type:'html',id:o.group,slot:o.slot,name:o.name,source:o.source,html:o.html}); patch(o.group,'files',j.files||{}); return j.files||{} },
+    async getHtml(group,slot){ const j=await get('action=html&id='+encodeURIComponent(group)+'&slot='+encodeURIComponent(slot)); return String(j.html||'') },
+    async upload(o){ const j=await post({type:'upload',id:o.group,slot:o.slot,name:o.name,mime:o.mime,data:o.data}); patch(o.group,'shots',j.shots||{}); return j.shots||{} },
+    async unshot(group,slot,fileId){ const j=await post({type:'unshot',id:group,slot,fileId}); patch(group,'shots',j.shots||{}); return j.shots||{} },
+    ping:()=>get('action=ping'),
+  };
+}
+
+// ====== 狀態 ======
+const S={
+  view:'login', group:lsGet(LS.group), page:0,
+  store:null, mode:'pending', data:{}, draft:{}, cls:{}, groupUnsub:null,
+  sel:new Set(), paste:{}, busy:{},
+  t:{ unlocked:!!lsGet(LS.teacher), tab:'overview', sel:1, proj:1, groups:{}, unsub:null, sig:'' },
+};
+{ const p=lsGet(LS.page); if(typeof p==='number'&&p>=0&&p<PAGES.length) S.page=p }
+const remote=()=>S.mode==='sheet';
+const val=k=>(k in S.draft)?S.draft[k]:getPath(S.data,k);
+const isLocked=()=>!!getPath(S.data,'s1.locked');
+
+// ====== 草稿與儲存 ======
+// 打字的內容先放草稿（也存在這台裝置），按「儲存」才送給老師；換頁、重新整理都不會不見。
+function loadGroup(){
+  S.data=S.group?(lsGet(LS.data+S.group)||{}):{};
+  S.draft=S.group?(lsGet(LS.draft+S.group)||{}):{};
+  S.sel=new Set(); S.paste={};
+}
+let draftT; const flushDrafts=()=>{ clearTimeout(draftT); if(S.group) lsSet(LS.draft+S.group,S.draft) };
+function saveDrafts(){ clearTimeout(draftT); draftT=setTimeout(flushDrafts,300) }
+// 關掉分頁、切到別的 App 時，馬上把草稿存起來
+window.addEventListener('pagehide',flushDrafts);
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') flushDrafts() });
+function setDraft(k,v){ S.draft[k]=v; saveDrafts() }
+async function saveSection(sec,extra){
+  if(!S.group) return false;
+  const v={};
+  FIELDS[sec].forEach(f=>{ let x=val(sec+'.'+f); if(typeof x==='string') x=x.trim(); if(x!==undefined) v[f]=x });
+  Object.assign(v,extra||{}); v.at=now();
+  S.data=Object.assign({},S.data,{[sec]:Object.assign({},S.data[sec],v),group:S.group,text:textFor(S.group).id,updatedAt:now()});
+  Object.keys(S.draft).filter(k=>k.startsWith(sec+'.')).forEach(k=>delete S.draft[k]);
+  lsSet(LS.draft+S.group,S.draft); lsSet(LS.data+S.group,S.data);
+  $$('[data-k^="'+sec+'."]').forEach(el=>el.classList.remove('dirty'));
+  showSaved(sec,remote()?false:undefined);
+  let ok=true;
+  if(remote()){
+    try{ await S.store.saveGroup('g'+S.group,S.data); showSaved(sec,true); toast('已儲存') }
+    catch(e){ ok=false; showSaved(sec); toast('沒有存到老師那裡，先存在這台裝置；請再按一次儲存') }
+  } else toast('已存在這台裝置');
+  renderRail();
+  return ok;
+}
+function showSaved(sec,server){
+  $$('[data-status="'+sec+'"]').forEach(el=>{
+    const at=S.data[sec]&&S.data[sec].at, dirty=Object.keys(S.draft).some(k=>k.startsWith(sec+'.'));
+    if(!at){ el.textContent='還沒儲存'; el.className='status'+(dirty?' warn':''); return }
+    if(remote()&&server===false){ el.textContent='儲存中…'; el.className='status' }
+    else if(remote()){ el.textContent=(dirty?'有修改還沒儲存 · 上次 ':'已儲存 · ')+fmtTime(at); el.className='status '+(dirty?'warn':'ok') }
+    else { el.textContent='已存在這台裝置 · '+fmtTime(at); el.className='status warn' }
+  });
+}
+
+// ====== 連線 ======
+async function initStore(){
+  let store=null;
+  if(C.sheetEndpoint){
+    const sheet=makeSheetStore(C.sheetEndpoint);
+    try{ await sheet.ping(); store=sheet }catch(e){ console.warn('Google 試算表連不上，改存本機：',e) }
+  }
+  if(!store) store=makeLocalStore();
+  S.store=store; S.mode=store.mode; renderModePill();
+  if(remote()){
+    store.watchSettings(cls=>{ S.cls=cls||{}; renderBanner(); renderTeacherStageBar() });
+    if(S.group) subscribeGroup();
+    if(S.view==='teacher') subscribeTeacher();
+  }
+  if(S.view==='student') refreshDynamic();
+}
+function subscribeGroup(){
+  if(!S.store||!remote()||!S.group) return;
+  if(S.groupUnsub) S.groupUnsub();
+  S.groupUnsub=S.store.watchGroup('g'+S.group,data=>{
+    // 只接受不比手上舊的資料，避免輪詢時把剛存的答案蓋掉
+    if(S.data.updatedAt&&data.updatedAt&&data.updatedAt<S.data.updatedAt) return;
+    const wasLocked=isLocked();
+    S.data=data; lsSet(LS.data+S.group,S.data);
+    if(S.view!=='student') return;
+    const focused=document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#pageBody');
+    if(wasLocked!==isLocked()&&!focused) renderPage(); else syncFields();
+    renderRail();
+  });
+}
+function subscribeTeacher(){
+  if(!S.store||!remote()||S.t.unsub) return;
+  S.t.unsub=S.store.watchGroups(groups=>{ S.t.groups=groups||{}; if(S.view==='teacher') renderTeacherBody() });
+}
+// 組員儲存後，把自己沒在改的欄位換成最新內容
+function syncFields(){
+  const root=$('#pageBody'); if(!root) return;
+  const keys=new Set($$('[data-k]',root).map(e=>e.dataset.k));
+  keys.forEach(k=>{
+    if(k in S.draft) return;
+    const els=$$('[data-k="'+k+'"]',root); if(els.includes(document.activeElement)) return;
+    const v=getPath(S.data,k);
+    els.forEach(e=>{ if(e.type==='checkbox') e.checked=Array.isArray(v)&&v.includes(e.value); else if(e.type==='radio') e.checked=String(v)===e.value; else e.value=v==null?'':v });
+  });
+  const inNotes=document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#notesList');
+  if(!('s1.notes' in S.draft)&&!inNotes){ renderTokLine(); renderSelBar(); renderNotes() }
+  $$('[data-derived]',root).forEach(el=>{ const f=DERIVED[el.dataset.derived]; if(f) el.innerHTML=f() });
+  SECS.forEach(s=>showSaved(s));
+  refreshDynamic();
+}
+function refreshDynamic(){ ['v1','v2'].forEach(slot=>{ renderHtmlBox(slot); renderShots(slot) }); fillPreviews($('#pageBody')) }
+
+// ====== HTML 成品：上傳檔案或貼上程式碼，存給老師，網頁上直接預覽 ======
+const HC={}, HCP={};   // 快取：'g3:v1:savedAt' → html
+const hkey=(gid,slot,meta)=>gid+':'+slot+':'+((meta&&meta.savedAt)||'');
+function fetchHtml(gid,slot,meta){
+  const key=hkey(gid,slot,meta);
+  if(key in HC) return Promise.resolve(HC[key]);
+  if(!HCP[key]) HCP[key]=S.store.getHtml(gid,slot).then(h=>{ HC[key]=h; return h }).finally(()=>{ delete HCP[key] });
+  return HCP[key];
+}
+// 學生常會連 AI 的說明文字、```html 一起貼上；這裡只留下 HTML
+function cleanHtml(s){
+  s=String(s||'').replace(/^﻿/,'').trim();
+  const fence=s.match(/```[ \t]*(?:html|HTML|htm)?[ \t]*\r?\n([\s\S]*?)```/);
+  if(fence&&/<[a-z!]/i.test(fence[1])) s=fence[1].trim();
+  const start=s.search(/<!doctype html|<html[\s>]/i); if(start>0) s=s.slice(start);
+  const end=s.toLowerCase().lastIndexOf('</html>'); if(end>=0) s=s.slice(0,end+7);
+  return s;
+}
+// 學生的網頁放在沙盒 iframe 裡：程式可以跑，但碰不到這個任務單（沒有 allow-same-origin）
+function frame(html,cls){ const f=document.createElement('iframe'); f.setAttribute('sandbox','allow-scripts allow-forms allow-modals allow-popups'); f.setAttribute('referrerpolicy','no-referrer'); f.title='AI 做的網頁預覽'; if(cls) f.className=cls; f.srcdoc=html; return f }
+function openOverlay(html,title,filename){
+  const o=document.createElement('div'); o.className='overlay'; o.setAttribute('role','dialog'); o.setAttribute('aria-label',title);
+  o.innerHTML=`<div class="ohead"><strong>${esc(title)}</strong><div class="row" style="gap:6px"><button class="btn sm ghost" data-dl>下載 HTML</button><button class="btn sm" data-x>關閉</button></div></div>`;
+  o.appendChild(frame(html));
+  const close=()=>{ o.remove(); document.removeEventListener('keydown',onKey) };
+  const onKey=e=>{ if(e.key==='Escape') close() };
+  o.querySelector('[data-x]').addEventListener('click',close);
+  o.querySelector('[data-dl]').addEventListener('click',()=>download(filename,html,'text/html;charset=utf-8'));
+  o.addEventListener('click',e=>{ if(e.target===o) close() });
+  document.addEventListener('keydown',onKey); document.body.appendChild(o); o.querySelector('[data-x]').focus();
+}
+const SLOT_NAME={v1:'第一版',v2:'修正版'};
+const fileName=(g,slot)=>`第${g}組_${SLOT_NAME[slot]}.html`;
+// 預覽框：<div data-pv="g3:v1"> 之後由 fillPreviews 放入 iframe
+function pvBox(gid,slot,mini){ return `<div class="pv ${mini?'mini':''}" data-pv="${gid}:${slot}" ${mini?'tabindex="0" role="button" aria-label="放大看"':''}><div class="pvmsg">載入中…</div></div>` }
+function filesOf(gid){ return gid==='g'+S.group&&S.view==='student'?(S.data.files||{}):((S.t.groups[gid]||{}).files||{}) }
+function fillPreviews(root){
+  if(!root||!S.store) return;
+  $$('[data-pv]',root).forEach(box=>{
+    const [gid,slot]=box.dataset.pv.split(':'), meta=filesOf(gid)[slot], g=+gid.slice(1);
+    box.classList.toggle('none',!meta);
+    if(!meta){ box.innerHTML='<div class="pvmsg">還沒有上傳</div>'; box.dataset.sig=''; return }
+    const key=hkey(gid,slot,meta); if(box.dataset.sig===key) return;
+    box.dataset.sig=key; box.innerHTML='<div class="pvmsg">載入中…</div>';
+    fetchHtml(gid,slot,meta).then(html=>{
+      if(box.dataset.sig!==key) return;
+      box.innerHTML=''; box.appendChild(frame(html));
+      if(box.classList.contains('mini')&&!box.dataset.bound){ box.dataset.bound='1';
+        const open=()=>{ const m=filesOf(gid)[slot]; fetchHtml(gid,slot,m).then(h=>openOverlay(h,`第 ${g} 組 · ${SLOT_NAME[slot]}`,fileName(g,slot))) };
+        box.addEventListener('click',open); box.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); open() } });
+      }
+    }).catch(e=>{ if(box.dataset.sig===key){ box.innerHTML=`<div class="pvmsg">讀不到檔案（${esc(e&&e.message||e)}）</div>`; box.dataset.sig='' } });
+  });
+}
+function htmlBox(slot){ return `<div class="card ai stack" id="hb-${slot}"></div>` }
+function renderHtmlBox(slot){
+  const box=$('#hb-'+slot); if(!box) return;
+  if(box.contains(document.activeElement)&&box.dataset.sig) return;   // 正在貼上時不要重畫
+  const meta=(S.data.files||{})[slot], busy=!!S.busy[slot];
+  const sig=JSON.stringify([meta&&meta.savedAt,busy,S.mode]); if(box.dataset.sig===sig) return; box.dataset.sig=sig;
+  const gid='g'+S.group;
+  box.innerHTML=`
+    <div class="row between"><h3>AI 做的輔具 · ${SLOT_NAME[slot]}（HTML）</h3><span class="status ${meta?'ok':''}" id="hbStat-${slot}">${busy?'儲存中…':meta?`已存${meta.local?'在這台裝置':'給老師'} · ${esc(meta.source==='paste'?'貼上':'上傳')} · ${kb(meta.size||0)} · ${fmtTime(meta.savedAt)}`:'還沒上傳'}</span></div>
+    <p class="small muted">兩種方式選一種就好。重新上傳或貼上，會取代舊的。${S.mode==='local'?'<br><strong>注意：</strong>現在沒有連到老師的試算表，檔案只會存在這台裝置。':''}</p>
+    <div class="grid g2">
+      <div class="f">① 上傳 HTML 檔<span class="hint">AI 讓你們下載了 .html 檔的話，用這個。</span>
+        <div class="drop" data-drop tabindex="0"><input type="file" accept=".html,.htm,text/html" hidden data-file><button type="button" class="btn sm ai" data-pick ${busy?'disabled':''}>選擇檔案</button><span class="small muted">或把檔案拖進來</span></div></div>
+      <label class="f">② 貼上 HTML 程式碼<span class="hint">平板或不能下載時，複製 AI 給的整段程式碼貼在這裡。</span>
+        <textarea class="code" rows="4" data-paste placeholder="<!DOCTYPE html>&#10;<html>…</html>">${esc(S.paste[slot]||'')}</textarea>
+        <span class="row"><button type="button" class="btn sm ai" data-pastesave ${busy?'disabled':''}>預覽並存給老師</button></span></label>
+    </div>
+    ${meta?`<div class="pvbar"><span class="small muted">預覽（可以直接操作）</span><span class="row" style="gap:6px"><button class="btn sm ghost" data-big>放大</button><button class="btn sm ghost" data-dl>下載 HTML</button></span></div>${pvBox(gid,slot,false)}`:''}
+    <details class="help"><summary>技術有困難？改傳截圖</summary><div style="margin-top:8px" id="sb-${slot}"></div></details>`;
+  const input=$('[data-file]',box), drop=$('[data-drop]',box);
+  $('[data-pick]',box).addEventListener('click',()=>input.click());
+  input.addEventListener('change',()=>{ const f=input.files[0]; input.value=''; if(f) readHtmlFile(slot,f) });
+  drop.addEventListener('dragover',e=>{ e.preventDefault(); drop.classList.add('over') });
+  drop.addEventListener('dragleave',()=>drop.classList.remove('over'));
+  drop.addEventListener('drop',e=>{ e.preventDefault(); drop.classList.remove('over'); const f=e.dataTransfer.files[0]; if(f) readHtmlFile(slot,f) });
+  const ta=$('[data-paste]',box); ta.addEventListener('input',()=>{ S.paste[slot]=ta.value });
+  $('[data-pastesave]',box).addEventListener('click',()=>{ const h=ta.value; if(!h.trim()){ toast('先把程式碼貼上'); ta.focus(); return } submitHtml(slot,h,'paste','貼上的程式碼.html') });
+  const big=$('[data-big]',box), dl=$('[data-dl]',box);
+  if(big) big.addEventListener('click',()=>fetchHtml(gid,slot,meta).then(h=>openOverlay(h,`第 ${S.group} 組 · ${SLOT_NAME[slot]}`,fileName(S.group,slot))).catch(e=>toast('讀不到檔案')));
+  if(dl) dl.addEventListener('click',()=>fetchHtml(gid,slot,meta).then(h=>download(fileName(S.group,slot),h,'text/html;charset=utf-8')).catch(e=>toast('讀不到檔案')));
+  fillPreviews(box); renderShots(slot,true);
+}
+function readHtmlFile(slot,file){
+  if(!/\.html?$/i.test(file.name||'')&&!/html/.test(file.type||'')){ toast('請選 .html 檔'); return }
+  const r=new FileReader(); r.onload=()=>submitHtml(slot,String(r.result||''),'upload',file.name); r.onerror=()=>toast('讀不到這個檔案'); r.readAsText(file,'utf-8');
+}
+async function submitHtml(slot,raw,source,name){
+  if(!S.store||S.busy[slot]) return;
+  const html=cleanHtml(raw);
+  if(!/<[a-z!][^>]*>/i.test(html)){ toast('這看起來不是 HTML 程式碼，請再確認'); return }
+  if(html.length>MAX_HTML){ toast('檔案太大（超過 '+kb(MAX_HTML)+'）'); return }
+  const incomplete=/<html[\s>]/i.test(html)&&!/<\/html>\s*$/i.test(html);
+  S.busy[slot]=true; renderHtmlBox(slot);
+  try{
+    const files=await S.store.saveHtml({group:'g'+S.group,slot,name:String(name||'').slice(0,80),source,html});
+    S.data=Object.assign({},S.data,{files});
+    lsSet(LS.data+S.group,S.data);
+    HC[hkey('g'+S.group,slot,files[slot])]=html;
+    if(source==='paste') S.paste[slot]='';
+    toast(incomplete?'已儲存，但最後沒有 </html>，程式碼可能沒複製完整':(remote()?'已存給老師':'已存在這台裝置'));
+  }catch(e){ toast('沒有存成功：'+(e&&e.message||e)) }
+  S.busy[slot]=false; const b=$('#hb-'+slot); if(b) b.dataset.sig=''; renderHtmlBox(slot); renderRail();
+  const d=$$('[data-derived]'); d.forEach(el=>{ const f=DERIVED[el.dataset.derived]; if(f) el.innerHTML=f() }); fillPreviews($('#pageBody'));
+}
+
+// ====== 截圖（備案）======
+const thumbUrl=s=>s&&s.id?'https://drive.google.com/thumbnail?id='+encodeURIComponent(s.id)+'&sz=w800':safeUrl(s&&s.url);
+function shotFigure(s,slot,removable){
+  return `<figure class="shot"><a href="${esc(safeUrl(s.url))}" target="_blank" rel="noopener" title="在雲端硬碟開啟"><img src="${esc(thumbUrl(s))}" alt="${esc(s.name||'網頁截圖')}" loading="lazy"></a>${removable?`<button type="button" class="btn sm ghost" data-unshot="${esc(s.id)}">移除</button>`:''}</figure>`;
+}
+function renderShots(slot,force){
+  const box=$('#sb-'+slot); if(!box) return;
+  const shots=getPath(S.data,'shots.'+slot)||[], can=!!(S.store&&S.store.upload), busy=!!S.busy['shot'+slot];
+  const sig=JSON.stringify([shots.map(s=>s.id),can,busy]); if(!force&&box.dataset.sig===sig) return; box.dataset.sig=sig;
+  box.innerHTML=`<div class="stack">
+      <span class="small muted">把 AI 做出來的網頁截圖上傳（最多 ${MAX_SHOTS} 張），會存到老師的雲端硬碟。電腦上也可以點一下框框，再按 ⌘V／Ctrl+V 貼上截圖。</span>
+      ${can?`<div class="drop" data-sdrop tabindex="0"><input type="file" accept="image/*" multiple hidden data-sfile><button type="button" class="btn sm ai" data-spick ${busy||shots.length>=MAX_SHOTS?'disabled':''}>選擇圖片</button><span class="small muted" data-smsg>${busy?'上傳中…':shots.length>=MAX_SHOTS?'已達上限':'或把圖片拖進來、貼上'}</span></div>`
+        :`<div class="refbox">${S.mode==='pending'?'正在連線…':'現在沒有連到老師的雲端硬碟，不能上傳截圖。請依老師指示另外繳交。'}</div>`}
+      ${shots.length?`<div class="shots">${shots.map(x=>shotFigure(x,slot,can)).join('')}</div>`:''}
+    </div>`;
+  if(!can) return;
+  const input=$('[data-sfile]',box), drop=$('[data-sdrop]',box);
+  $('[data-spick]',box).addEventListener('click',()=>input.click());
+  input.addEventListener('change',()=>{ uploadShots(slot,input.files); input.value='' });
+  drop.addEventListener('dragover',e=>{ e.preventDefault(); drop.classList.add('over') });
+  drop.addEventListener('dragleave',()=>drop.classList.remove('over'));
+  drop.addEventListener('drop',e=>{ e.preventDefault(); drop.classList.remove('over'); uploadShots(slot,e.dataTransfer.files) });
+  drop.addEventListener('paste',e=>{ const f=[...(e.clipboardData&&e.clipboardData.files||[])]; if(f.length){ e.preventDefault(); uploadShots(slot,f) } });
+  $$('[data-unshot]',box).forEach(b=>b.addEventListener('click',async()=>{
+    if(!confirm('要移除這張截圖嗎？')) return;
+    try{ setShotsLocal(await S.store.unshot('g'+S.group,slot,b.dataset.unshot)); toast('已移除') }catch(e){ toast('沒有成功：'+(e&&e.message||e)) }
+  }));
+}
+function setShotsLocal(shots){ S.data=Object.assign({},S.data,{shots}); lsSet(LS.data+S.group,S.data); renderShots('v1'); renderShots('v2'); renderRail() }
+async function imageToJpeg(file){
+  const src=URL.createObjectURL(file);
+  try{
+    const img=await new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>res(im); im.onerror=()=>rej(new Error('讀不到這張圖片')); im.src=src });
+    const k=Math.min(1,1600/Math.max(img.naturalWidth,img.naturalHeight));
+    const c=document.createElement('canvas'); c.width=Math.max(1,Math.round(img.naturalWidth*k)); c.height=Math.max(1,Math.round(img.naturalHeight*k));
+    const ctx=c.getContext('2d'); ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,c.width,c.height); ctx.drawImage(img,0,0,c.width,c.height);
+    return c.toDataURL('image/jpeg',0.85).split(',')[1];
+  } finally { URL.revokeObjectURL(src) }
+}
+async function uploadShots(slot,list){
+  const bk='shot'+slot; if(S.busy[bk]||!S.store||!S.store.upload) return;
+  let files=[...(list||[])].filter(f=>f&&/^image\//.test(f.type||''));
+  if(!files.length){ toast('請選擇圖片檔'); return }
+  const room=MAX_SHOTS-(getPath(S.data,'shots.'+slot)||[]).length;
+  if(room<=0){ toast('最多 '+MAX_SHOTS+' 張'); return }
+  if(files.length>room){ toast('只會上傳前 '+room+' 張'); files=files.slice(0,room) }
+  S.busy[bk]=true; renderShots(slot); let ok=0;
+  for(let i=0;i<files.length;i++){
+    const msg=$('#sb-'+slot+' [data-smsg]'); if(msg) msg.textContent='上傳中 '+(i+1)+' / '+files.length+'…';
+    try{
+      const data=await imageToJpeg(files[i]);
+      const name=String(files[i].name||'screenshot').replace(/\.[^.]+$/,'').slice(0,60)+'.jpg';
+      setShotsLocal(await S.store.upload({group:'g'+S.group,slot,name,mime:'image/jpeg',data})); ok++;
+    }catch(e){ toast('上傳失敗：'+(e&&e.message||e)) }
+  }
+  S.busy[bk]=false; renderShots(slot); if(ok) toast('已上傳 '+ok+' 張');
+}
+
+// ====== 畫面骨架 ======
+const app=$('#app');
+document.title=(PART===1?'語法偏誤任務單 · 網站 1':'語法偏誤任務單 · 網站 2');
+function render(){
+  if(S.view==='teacher'&&S.t.unlocked){ renderTeacher(); return }
+  if(!S.group){ S.view='login'; renderLogin(); return }
+  S.view='student'; renderStudent();
+}
+function renderLogin(){
+  app.innerHTML=`<main class="wrap"><div class="page">
+    <div><div class="kicker">語言學概論 · 語法 · 網站 ${PART}</div><h1 style="margin-top:6px">${esc(C.title||'')}<br><span style="font-size:.7em">${esc(C.subtitle||'')}</span></h1>
+      <p class="lead" style="margin-top:8px">${PART===1?'點你們的組別就可以開始。':'這是第二部分。點你們的組別，會接著網站 1 的答案繼續。'}全組共用一份答案，任何人按「儲存」，組員的畫面都會一起更新。</p></div>
+    <div class="card stack">
+      <h2>你是第幾組？</h2>
+      <div class="gpick">${Array.from({length:TOTAL_GROUPS},(_,i)=>i+1).map(g=>{ const t=textFor(g); return `<button type="button" data-g="${g}"><strong>${g}</strong><span>語料 ${t.id} · ${esc(t.level)}</span></button>` }).join('')}</div>
+      <p class="status" id="modePill"></p>
+    </div>
+    <details class="card soft help">
+      <summary>教師入口</summary>
+      <form class="row" id="teacherForm" style="margin-top:10px">
+        <input type="password" id="inCode" placeholder="通關碼" style="flex:1;min-width:140px" autocomplete="off">
+        <button class="btn ghost" type="submit">進入教師端</button>
+      </form>
+      <p class="status" id="codeMsg"></p>
+      ${S.t.unlocked?'<p class="small" style="margin-top:6px"><a href="#" id="goTeacher">已解鎖教師端，直接進入 →</a></p>':''}
+    </details>
+  </div></main>`;
+  $$('[data-g]',app).forEach(b=>b.addEventListener('click',()=>{ S.group=+b.dataset.g; lsSet(LS.group,S.group); loadGroup(); S.page=0; lsSet(LS.page,0); subscribeGroup(); render() }));
+  $('#teacherForm').addEventListener('submit',e=>{ e.preventDefault();
+    if($('#inCode').value===TEACHER_CODE){ S.t.unlocked=true; lsSet(LS.teacher,true); S.view='teacher'; subscribeTeacher(); render() }
+    else { $('#codeMsg').textContent='通關碼不對，再試一次。'; $('#codeMsg').className='status warn' }
+  });
+  const gt=$('#goTeacher'); if(gt) gt.addEventListener('click',e=>{ e.preventDefault(); S.view='teacher'; subscribeTeacher(); render() });
+  renderModePill();
+}
+const MODE_TEXT={
+  pending:['正在連線…','… 連線中',''],
+  sheet:['已連線：答案會直接存到老師的試算表。','● 存給老師','ok'],
+  local:['沒有連到老師的試算表：答案會先存在這台裝置，最後按「複製本組答案」交給老師。','○ 存在本機','warn'],
+};
+function renderModePill(){
+  const m=MODE_TEXT[S.mode]||MODE_TEXT.pending;
+  const el=$('#modePill'); if(el){ el.textContent=m[0]; el.className='status '+m[2] }
+  const p=$('#modeMini'); if(p){ p.textContent=m[1]; p.className='pill '+m[2] }
+}
+function renderStudent(){
+  const t=textFor(S.group);
+  app.innerHTML=`
+  <div class="top"><div class="top-in">
+    <div class="bar">
+      <span class="gname">第 ${S.group} 組 · 語料 ${t.id}（${esc(t.level)}）<span class="chip acc" style="margin-left:6px;vertical-align:middle">網站 ${PART}</span></span>
+      <div class="row" style="gap:6px"><span class="pill" id="modeMini"></span><button class="btn ghost sm" id="btnCopyAll">複製本組答案</button><button class="btn ghost sm" id="btnLeave">換組</button></div>
+    </div>
+    <nav class="rail" id="rail" aria-label="任務頁"></nav>
+  </div></div>
+  <main class="wrap"><div id="banner"></div><div id="pageBody"></div></main>
+  <div class="foot"><div class="foot-in"><button class="btn ghost" id="prev">← 上一頁</button><span class="pos" id="pos"></span><button class="btn" id="next">下一頁 →</button></div></div>`;
+  $('#btnLeave').addEventListener('click',()=>{ lsDel(LS.group); S.group=null; if(S.groupUnsub){S.groupUnsub();S.groupUnsub=null} render() });
+  $('#btnCopyAll').addEventListener('click',()=>copyText(summaryText()));
+  $('#prev').addEventListener('click',()=>go(S.page-1));
+  $('#next').addEventListener('click',()=>go(S.page+1));
+  renderModePill(); renderRail(); renderBanner(); renderPage();
+}
+function go(i){ if(i<0||i>=PAGES.length) return; S.page=i; lsSet(LS.page,i); renderRail(); renderPage(); window.scrollTo({top:0}) }
+function secDone(sec,d){
+  d=d||S.data; const G=k=>getPath(d,k);
+  return sec==='s1'?!!G('s1.locked')
+    : sec==='ai1'?!!(G('ai1.prompt')&&(G('files.v1')||(G('shots.v1')||[]).length))
+    : sec==='s3'?!!G('s3.score')
+    : sec==='p2'?!!((G('p2.had')||[]).length||(G('p2.bias')||[]).length||G('p2.biasNote'))
+    : sec==='ai2'?!!(G('ai2.prompt')&&(G('files.v2')||(G('shots.v2')||[]).length))
+    : sec==='end'?!!G('end.share') : false;
+}
+function renderRail(){
+  const r=$('#rail'); if(!r) return;
+  r.innerHTML=PAGES.map((p,i)=>`<button data-i="${i}" class="${i===S.page?'on':''} ${p.cls||''} ${p.sec&&secDone(p.sec)?'done':''}">${p.nav}</button>`).join('');
+  $$('button',r).forEach(b=>b.addEventListener('click',()=>go(+b.dataset.i)));
+  const on=$('.on',r); if(on&&on.scrollIntoView) on.scrollIntoView({block:'nearest',inline:'center'});
+  const pos=$('#pos'); if(pos) pos.textContent=(S.page+1)+' / '+PAGES.length;
+  const pv=$('#prev'), nx=$('#next'); if(pv) pv.disabled=S.page===0; if(nx) nx.disabled=S.page===PAGES.length-1;
+}
+function renderBanner(){
+  const el=$('#banner'); if(!el) return;
+  const c=S.cls, st=c&&STAGES.find(s=>s.n===c.stage);
+  if(!st){ el.innerHTML=''; return }
+  const other=st.part&&st.part!==PART&&PART_URL[st.part];
+  el.innerHTML=`<div class="banner"><span>老師現在進行：<strong>階段 ${st.n} ${esc(st.title)}</strong>${other?`　→ <a href="${esc(PART_URL[st.part])}">請打開網站 ${st.part}</a>`:''}</span><span class="timer" id="clsTimer"></span></div>`;
+  tickClass(c.stageStartedAt?new Date(c.stageStartedAt).getTime():null,st.min);
+}
+let clsTick; function tickClass(started,min){ clearInterval(clsTick); if(!started) return; const f=()=>{ const el=$('#clsTimer'); if(!el){clearInterval(clsTick);return} const left=min*60-(Date.now()-started)/1000; el.textContent=(left>=0?'還剩 ':'超時 ')+mmss(Math.abs(left)); el.style.color=left<0?'var(--mark)':'' }; f(); clsTick=setInterval(f,1000) }
+
+// ====== 欄位 ======
+function ta(k,label,hint,ph,rows,ro){ const v=val(k); return `<label class="f">${label}${hint?`<span class="hint">${hint}</span>`:''}<textarea data-k="${k}" maxlength="${MAXLEN}" rows="${rows||3}" placeholder="${esc(ph||'')}" ${ro?'readonly':''} class="${k in S.draft?'dirty':''}">${esc(v||'')}</textarea></label>` }
+function inp(k,label,ph,hint){ const v=val(k); return `<label class="f">${label}${hint?`<span class="hint">${hint}</span>`:''}<input type="text" data-k="${k}" placeholder="${esc(ph||'')}" value="${esc(v||'')}" class="${k in S.draft?'dirty':''}"></label>` }
+function radios(k,label,opts,hint){ const v=String(val(k)||''); return `<div class="f">${label}${hint?`<span class="hint">${hint}</span>`:''}<div class="opts" role="radiogroup">${opts.map(o=>`<label><input type="radio" name="${k}" data-k="${k}" value="${esc(o)}" ${v===o?'checked':''}><span>${esc(o)}</span></label>`).join('')}</div></div>` }
+function checks(k,label,opts,hint){ const v=val(k)||[]; return `<div class="f">${label}${hint?`<span class="hint">${hint}</span>`:''}<div class="checks">${opts.map(o=>`<label><input type="checkbox" data-k="${k}" value="${esc(o)}" ${v.includes(o)?'checked':''}><span>${esc(o)}</span></label>`).join('')}</div></div>` }
+function scoreField(k,label,hint){ const v=String(val(k)||''); return `<div class="f">${label}<span class="hint">${hint}</span><div class="score" role="radiogroup">${[1,2,3,4,5].map(n=>`<label><input type="radio" name="${k}" data-k="${k}" value="${n}" ${v===String(n)?'checked':''}><span>${n}</span></label>`).join('')}</div></div>` }
+function saveBar(sec,text,cls){ return `<div class="savebar"><span class="status" data-status="${sec}"></span><button class="btn ${cls||''}" data-save="${sec}">${text||'儲存'}</button></div>` }
+function readField(k,root){
+  const els=$$('[data-k="'+k+'"]',root); const f=els[0]; if(!f) return undefined;
+  if(f.type==='checkbox') return els.filter(x=>x.checked).map(x=>x.value);
+  if(f.type==='radio'){ const c=els.find(x=>x.checked); return c?c.value:'' }
+  return f.value;
+}
+function textCard(copy){ const t=textFor(S.group); return `<div class="card soft stack"><div class="row between"><div class="kicker">語料 ${t.id} · ${esc(t.level)}學習者的作文</div>${copy?'<button class="btn sm ghost" data-copytext>複製語料</button>':''}</div><p class="sent">${esc(t.text)}</p></div>` }
+function head(kicker,title,min,cls){ return `<div class="row between" style="align-items:flex-end"><div><div class="kicker ${cls||''}">${kicker}</div><h2 style="margin-top:4px">${title}</h2></div>${min?`<span class="chip acc">約 ${min} 分鐘</span>`:''}</div>` }
+const stageMin=n=>(STAGES.find(s=>s.n===n)||{}).min||'';
+const reqLine=()=>`<div class="tpl"><button class="btn sm copy" data-copyreq>複製</button>${esc(REQUIRED_LINE)}</div>`;
+
+// ====== 階段 1：標註 ======
+const notesNow=()=>val('s1.notes')||[];
+function renderTokLine(){
+  const line=$('#tokLine'); if(!line) return;
+  const t=textFor(S.group), notes=notesNow(), locked=isLocked();
+  const noted=new Map(); notes.forEach((n,ni)=>(n.toks||[]).forEach(i=>{ if(!noted.has(i)) noted.set(i,[]); noted.get(i).push(ni) }));
+  const lastOf=new Map(); notes.forEach((n,ni)=>{ const m=Math.max(...(n.toks||[-1])); if(m>=0){ if(!lastOf.has(m)) lastOf.set(m,[]); lastOf.get(m).push(ni+1) } });
+  line.innerHTML=t.tokens.map((tok,i)=>{
+    const cls=['tok',tok.trim()?'':'sp',S.sel.has(i)?'sel':'',noted.has(i)?'noted':''].join(' ');
+    const sup=lastOf.has(i)?`<sup>${lastOf.get(i).join(',')}</sup>`:'';
+    const label=tok.trim()?esc(tok):'&nbsp;';
+    return `<button type="button" class="${cls}" data-i="${i}" ${locked?'disabled':''} ${tok.trim()?'':'aria-label="空格"'}>${label}${sup}</button>`;
+  }).join('');
+  if(!locked) $$('.tok',line).forEach(b=>b.addEventListener('click',()=>{ const i=+b.dataset.i; S.sel.has(i)?S.sel.delete(i):S.sel.add(i); b.classList.toggle('sel'); renderSelBar() }));
+}
+function renderSelBar(){
+  const bar=$('#selBar'); if(!bar) return;
+  const t=textFor(S.group), txt=spanText(S.sel,t.tokens);
+  bar.innerHTML=`<span class="what small">${S.sel.size?`已選：<strong class="mk">${esc(txt)}</strong>`:'<span class="muted">點上面語料裡的詞來選取（可以選好幾個）。</span>'}</span>
+    <button class="btn sm ghost" data-clearsel ${S.sel.size?'':'disabled'}>清除選取</button><button class="btn sm" data-addnote ${S.sel.size?'':'disabled'}>＋ 新增標註</button>`;
+  $('[data-clearsel]',bar).addEventListener('click',()=>{ S.sel.clear(); renderTokLine(); renderSelBar() });
+  $('[data-addnote]',bar).addEventListener('click',()=>{
+    const notes=clone(notesNow()); const toks=[...S.sel].sort((a,b)=>a-b);
+    notes.push({id:uid(),toks,text:spanText(toks,t.tokens),type:'',fix:'',why:''});
+    setDraft('s1.notes',notes); S.sel.clear(); renderTokLine(); renderSelBar(); renderNotes(); showSaved('s1');
+    const last=$$('#notesList .note').pop(); if(last){ last.scrollIntoView({block:'nearest'}); const r=$('input[type=radio]',last); if(r) r.focus() }
+  });
+}
+function renderNotes(){
+  const box=$('#notesList'); if(!box) return;
+  const notes=notesNow(), locked=isLocked();
+  box.innerHTML=notes.length?notes.map((n,i)=>`<div class="card note stack" data-ni="${i}">
+      <div class="row between"><div class="row" style="gap:8px"><span class="nn">${i+1}</span><strong class="mk">${esc(n.text)}</strong></div>${locked?'':`<button class="btn sm ghost" data-del="${i}">刪除</button>`}</div>
+      <div class="f">偏誤類型<div class="opts" role="radiogroup">${TYPES.map(ty=>`<label><input type="radio" name="ty-${esc(n.id)}" data-nf="type" value="${esc(ty)}" ${n.type===ty?'checked':''} ${locked?'disabled':''}><span>${esc(ty)}</span></label>`).join('')}</div></div>
+      <div class="grid g2">
+        <label class="f">要改成什麼？<input type="text" data-nf="fix" value="${esc(n.fix||'')}" placeholder="寫出正確的說法" ${locked?'readonly':''}></label>
+        <label class="f">為什麼錯？（語法點）<input type="text" data-nf="why" value="${esc(n.why||'')}" placeholder="例：重疊形容詞不能加「不太」" ${locked?'readonly':''}></label>
+      </div></div>`).join('')
+    :`<div class="card soft"><p class="small muted">還沒有標註。在上面的語料點選有問題的詞，再按「＋ 新增標註」。</p></div>`;
+  if(locked) return;
+  $$('.note',box).forEach(card=>{
+    const i=+card.dataset.ni, toks=(notesNow()[i]||{}).toks||[];
+    card.addEventListener('mouseenter',()=>toks.forEach(t=>{ const b=$('#tokLine .tok[data-i="'+t+'"]'); if(b) b.classList.add('hl') }));
+    card.addEventListener('mouseleave',()=>$$('#tokLine .tok.hl').forEach(b=>b.classList.remove('hl')));
+    $$('[data-nf]',card).forEach(f=>f.addEventListener(f.type==='radio'?'change':'input',()=>{
+      const notes=clone(notesNow()); if(!notes[i]) return; notes[i][f.dataset.nf]=f.value; setDraft('s1.notes',notes);
+      if(f.type!=='radio') f.classList.add('dirty'); showSaved('s1');
+    }));
+  });
+  $$('[data-del]',box).forEach(b=>b.addEventListener('click',()=>{
+    if(!confirm('要刪除這個標註嗎？')) return;
+    const notes=clone(notesNow()); notes.splice(+b.dataset.del,1); setDraft('s1.notes',notes); renderTokLine(); renderNotes(); showSaved('s1');
+  }));
+}
+function notesSummary(d,tokens){
+  const notes=getPath(d,'s1.notes')||[];
+  return notes.length?`<ol class="nlist">${notes.map((n,i)=>`<li><span class="nn">${i+1}</span><span><strong class="mk">${esc(n.text)}</strong> <span class="chip mark">${esc(n.type||'？')}</span> → ${esc(n.fix||'')}${n.why?`<br><span class="small muted">${esc(n.why)}</span>`:''}</span></li>`).join('')}</ol>`:'<p class="small muted">（沒有標註）</p>';
+}
+async function lockNotes(){
+  if(!notesNow().length){ toast('先在階段 1 至少標出一個偏誤'); go(PAGES.findIndex(p=>p.id==='s1')); return }
+  if(!confirm('鎖定之後，階段 1 的標註就不能再修改。確定要鎖定嗎？')) return;
+  await saveSection('s1',{locked:true,lockedAt:now()});
+  renderPage();
+}
+
+// ====== 各頁內容 ======
+// data-derived 的區塊會在組員儲存後自動更新
+const DERIVED={
+  ours:()=>notesSummary(S.data)+(getPath(S.data,'s1.guide')?`<span class="small muted">怎麼指導</span><div class="ans">${esc(getPath(S.data,'s1.guide'))}</div>`:''),
+  aiReply:()=>{ const r=getPath(S.data,'ai1.reply'); return `<p class="small muted">${esc(getPath(S.data,'ai1.llm')||'AI')}${getPath(S.data,'ai1.llmNote')?' · '+esc(getPath(S.data,'ai1.llmNote')):''}</p><div class="ans long ${r?'':'empty'}">${r?esc(r):'（階段 2 還沒貼上 AI 的分析）'}</div>` },
+  s3sum:()=>{ const G=k=>esc(getPath(S.data,k)||''); return `<div class="grid g2"><div><span class="small muted">AI 漏掉的</span><div class="ans ${G('s3.miss')?'':'empty'}">${G('s3.miss')||'—'}</div></div><div><span class="small muted">AI 誤判或改過頭的</span><div class="ans ${G('s3.over')?'':'empty'}">${G('s3.over')||'—'}</div></div><div><span class="small muted">超出程度的詞</span><div class="ans ${G('s3.coctWords')?'':'empty'}">${G('s3.coctWords')||'—'}</div></div><div><span class="small muted">AI 分數</span><div class="ans ${G('s3.score')?'':'empty'}">${G('s3.score')||'—'} / 5</div></div></div>` },
+  prompt1:()=>{ const p=getPath(S.data,'ai1.prompt'); return `<div class="ans long ${p?'':'empty'}">${p?esc(p):'（網站 1 還沒儲存 prompt）'}</div>` },
+};
+const derived=(name,tag)=>`<${tag||'div'} class="stack" data-derived="${name}">${DERIVED[name]()}</${tag||'div'}>`;
+
+function renderPage(){
+  const el=$('#pageBody'); if(!el) return;
+  const p=PAGES[S.page], t=textFor(S.group), locked=isLocked();
+  let h='';
+  if(p.id==='start'){
+    h=`<div class="page">
+      ${head('第 '+S.group+' 組 · 網站 1','今天要做什麼？')}
+      ${textCard(false)}
+      <p>這是一位<strong>${esc(t.level)}</strong>華語學習者寫的短文。今天你們要先用自己的專業找出語法偏誤，再請 AI 分析並做一個教學輔具，最後檢查 AI 做得好不好。</p>
+      <div class="flow">
+        ${STAGES.map(s=>`<div class="${s.part===PART?'':'off'}"><span class="t">${s.min} 分鐘${s.part!==PART?' · 網站 '+s.part:''}</span><b>${s.n} ${esc(s.title)}</b>${{1:'自己標註偏誤、想好怎麼教',2:'自己寫 prompt，請 AI 分析並做輔具',3:'對照標註、用分級工具檢查',4:'把專業回饋給 AI，修正輔具',5:'AI 做不到、要靠我們的是什麼'}[s.n]||''}</div>`).join('')}
+      </div>
+      <div class="card soft stack"><strong>規則</strong>
+        <ul style="margin:0;padding-left:1.2em" class="small">
+          <li>階段 1 <strong>不能問 AI</strong>。標註完要先「鎖定」，才能進到階段 2。</li>
+          <li>每一頁寫完記得按「儲存」。有人儲存後，組員的畫面會自動更新；框線變橘色＝還沒儲存。</li>
+          <li>階段 4、5 在網站 2，老師會告訴你們什麼時候打開。</li>
+        </ul></div>
+    </div>`;
+  }
+  else if(p.id==='s1'){
+    h=`<div class="page">
+      ${head('階段 1 · 全組一起','人工標註：找出語法偏誤',stageMin(1))}
+      ${locked?`<div class="lockbox">🔒 標註已在 ${fmtTime(getPath(S.data,'s1.lockedAt'))} 鎖定，不能再修改。看完 AI 的分析後想改，請寫在階段 3 的最後一題。</div>`:`
+      <ol class="todo">
+        <li><div><strong>先不要問 AI，也不要查資料。</strong><br><span class="small muted">用你們的語感和語法知識判斷。</span></div></li>
+        <li><div><strong>點選有問題的詞，按「＋ 新增標註」。</strong><br><span class="small muted">可以選好幾個詞（例如錯序）；少了東西（遺漏）就點它前後的詞。標點和空格也可以點。</span></div></li>
+        <li><div><strong>每個標註選偏誤類型，寫下要改成什麼、為什麼錯。</strong></div></li>
+        <li><div><strong>最後寫下你們會怎麼指導這位學習者，按「儲存」。</strong></div></li>
+      </ol>`}
+      <div class="card stack">
+        <div class="row between"><div class="kicker">語料 ${t.id} · ${esc(t.level)}</div><details class="help small"><summary>偏誤類型是什麼？</summary><p class="small" style="margin-top:6px">${esc(C.errorTypeHint||'')}</p></details></div>
+        <p class="sent" id="tokLine"></p>
+        ${locked?'':'<div class="selbar" id="selBar"></div>'}
+      </div>
+      <div class="stack" id="notesList"></div>
+      <div class="card stack">
+        ${ta('s1.guide','你們會怎麼指導這位學習者？','先處理哪個問題？為什麼？要怎麼說，'+esc(t.level)+'的學習者才聽得懂？','例：先處理……，因為……。我會這樣跟他說：「……」',4,locked)}
+        ${locked?'':saveBar('s1','儲存標註')}
+      </div>
+      ${locked?'':`<div class="card soft row between"><span class="small">標註都完成了？到階段 2 鎖定標註，再開始問 AI。</span><button class="btn ghost sm" data-jump="ai1">前往階段 2 →</button></div>`}
+    </div>`;
+  }
+  else if(p.id==='ai1'){
+    if(!locked){
+      const n=notesNow().length, dirty=Object.keys(S.draft).some(k=>k.startsWith('s1.'));
+      h=`<div class="page">
+        ${head('階段 2 · 全組一起','引導 AI',stageMin(2),'ai')}
+        <div class="card stack">
+          <h3>先鎖定你們的標註</h3>
+          <p>鎖定之後，階段 1 的標註就不能再修改。這樣等一下才能公平地比較「你們的判斷」和「AI 的判斷」。</p>
+          <p class="small ${n?'muted':'status warn'}">目前有 ${n} 個標註${dirty?'，還有沒儲存的修改（鎖定時會一起儲存）':''}。</p>
+          <div class="row"><button class="btn" id="btnLock" ${n?'':'disabled'}>🔒 鎖定標註，開始問 AI</button><button class="btn ghost" data-jump="s1">← 回階段 1</button></div>
+        </div>
+      </div>`;
+    } else {
+      h=`<div class="page">
+        ${head('階段 2 · 全組一起','引導 AI',stageMin(2),'ai')}
+        <div class="card stack">
+          <p><strong>任務：</strong>自己寫 prompt，請 AI 分析這段語料的語法偏誤，並做出一個能幫助這位學習者的教學輔具（網頁）。prompt 要怎麼寫，由你們決定。</p>
+          <p class="small muted">用哪一個 AI 都可以（ChatGPT、Claude、Gemini…）。</p>
+        </div>
+        ${textCard(true)}
+        <div class="must">
+          <div class="kicker warn">唯一的規定</div>
+          <p><strong>prompt 的最後一定要加上這句話：</strong></p>
+          ${reqLine()}
+          <p class="small">用平板、不方便下載檔案的話，就請 AI 給程式碼，等一下直接貼上。</p>
+        </div>
+        <div class="card ai stack">
+          <h3>紀錄</h3>
+          ${radios('ai1.llm','用哪個 AI？',LLMS)}
+          ${inp('ai1.llmNote','（選填）版本或模式','例：免費版、GPT-5、Gemini 2.5 Flash')}
+          ${ta('ai1.prompt','你們的 prompt（整段貼上）','追問了不只一次的話，全部依序貼上，中間空一行。','',6)}
+          ${ta('ai1.reply','AI 的分析（貼上）','AI 說了哪些錯誤、怎麼改、為什麼。程式碼不用貼在這裡；如果分析都寫在網頁裡，就寫「在網頁裡」。','',5)}
+          ${saveBar('ai1','儲存紀錄','ai')}
+        </div>
+        ${htmlBox('v1')}
+        <div class="card soft row between"><span class="small">輔具做好、存好了？到階段 3 檢核 AI。</span><button class="btn ghost sm" data-jump="s3">前往階段 3 →</button></div>
+      </div>`;
+    }
+  }
+  else if(p.id==='s3'){
+    const lv=t.level;
+    h=`<div class="page">
+      ${head('階段 3 · 全組一起','檢核 AI',stageMin(3))}
+      <p>把 AI 的結果和你們自己的標註放在一起比。你們是老師，AI 是助手。</p>
+      <div class="grid g2">
+        <div class="card human stack"><span class="chip human" style="align-self:flex-start">你們的標註</span>${derived('ours')}</div>
+        <div class="card ai stack"><span class="chip ai" style="align-self:flex-start">AI 的分析</span>${derived('aiReply')}${pvBox('g'+S.group,'v1',true)}<span class="small muted">點預覽可以放大操作。</span></div>
+      </div>
+      <div class="card stack">
+        <h3>比一比</h3>
+        ${ta('s3.hit','① 都找到的：你們有標，AI 也找到了','','',2)}
+        ${ta('s3.miss','② AI 漏掉的：你們有標，AI 沒發現','','',2)}
+        ${ta('s3.over','③ AI 誤判或改過頭的：本來沒錯卻被改，或改法、理由不對','','',2)}
+      </div>
+      <div class="card stack">
+        <h3>④ 用分級工具檢查：AI 的說明，學習者看得懂嗎？</h3>
+        <p>這位學習者是<strong>${esc(lv)}</strong>${LEVELS[lv]?`（約 ${esc(LEVELS[lv])}）`:''}。把 AI 輔具裡<strong>給學習者看的說明</strong>複製下來，貼到 COCT 分級斷詞工具，看看哪些詞超出這個程度。</p>
+        <div class="row"><a class="btn ghost" href="${esc(COCT_URL)}" target="_blank" rel="noopener">打開 COCT 分級工具 ↗</a></div>
+        ${inp('s3.coctWords','超出程度的詞','例：補語（第 7 級）、修飾…')}
+        ${ta('s3.coctNote','這些詞會造成什麼問題？應該怎麼說比較好？','','',2)}
+      </div>
+      <div class="card stack">
+        ${scoreField('s3.score','⑤ AI 做的輔具可以給幾分？','1 分＝不能用，5 分＝可以直接給這位學習者用')}
+        ${ta('s3.rethink','⑥ 看完 AI 的分析，你們想修改自己的標註嗎？哪裡？為什麼？','AI 提醒了你們沒想到的地方，也可以寫在這裡。','',2)}
+        ${saveBar('s3')}
+      </div>
+      <div class="card soft stack"><strong>網站 1 完成！</strong><p class="small">等老師說開始，再打開網站 2，繼續「回饋修正」。${PART_URL[2]?` <a href="${esc(PART_URL[2])}">網站 2 ↗</a>`:''}</p></div>
+    </div>`;
+  }
+  else if(p.id==='recap'){
+    h=`<div class="page">
+      ${head('第 '+S.group+' 組 · 網站 2','回顧：你們和 AI 做了什麼')}
+      ${textCard(true)}
+      <div class="grid g2">
+        <div class="card human stack"><span class="chip human" style="align-self:flex-start">你們的標註</span>${derived('ours')}</div>
+        <div class="card ai stack"><span class="chip ai" style="align-self:flex-start">AI 第一版</span>${pvBox('g'+S.group,'v1',true)}<span class="small muted">點預覽可以放大操作。</span></div>
+      </div>
+      <div class="card stack"><h3>階段 3 的發現</h3>${derived('s3sum')}</div>
+      <div class="flow">${STAGES.filter(s=>s.part===2).map(s=>`<div><span class="t">${s.min} 分鐘</span><b>${s.n} ${esc(s.title)}</b>${{4:'檢視 prompt、反思 AI 的偏好，再請 AI 修正輔具',5:'AI 做不到、要靠我們的是什麼'}[s.n]||''}</div>`).join('')}</div>
+      <p class="small muted">上面是空的？請確認組別對不對，或回網站 1 按「儲存」。${PART_URL[1]?` <a href="${esc(PART_URL[1])}">網站 1 ↗</a>`:''}</p>
+    </div>`;
+  }
+  else if(p.id==='p2'){
+    h=`<div class="page">
+      ${head('階段 4 · 第一步','檢視你們的 prompt',stageMin(4))}
+      <div class="card stack"><span class="kicker">你們第一版的 prompt</span>${derived('prompt1')}</div>
+      <div class="card stack">
+        ${checks('p2.had','好的 prompt 通常有這些。你們第一版做到了哪幾項？',CHECKLIST,'勾選有做到的。')}
+        ${ta('p2.missing','最想補上哪兩項？為什麼？','','',2)}
+      </div>
+      <div class="card stack">
+        <h3>反思：AI 修正時，有沒有特定的偏好？</h3>
+        ${checks('p2.bias','你們觀察到 AI 有這些傾向嗎？（可複選）',BIASES)}
+        ${ta('p2.biasNote','舉一個例子：AI 改了什麼？你們覺得它為什麼會這樣改？這樣對學習者好嗎？','','',3)}
+        ${saveBar('p2')}
+      </div>
+      <div class="card soft row between"><span class="small">想好要怎麼回饋給 AI 了？</span><button class="btn ghost sm" data-jump="ai2">前往 4-2 回饋修正 →</button></div>
+    </div>`;
+  }
+  else if(p.id==='ai2'){
+    h=`<div class="page">
+      ${head('階段 4 · 第二步','把你們的專業回饋給 AI，修正輔具',stageMin(4),'ai')}
+      <ol class="todo ai">
+        <li><div><strong>回到剛剛和 AI 的同一個對話。</strong><br><span class="small muted">這樣 AI 記得它剛剛做的東西。對話不見了，就重新貼上語料和第一版的 HTML。</span></div></li>
+        <li><div><strong>根據階段 3 的發現和剛剛的檢核清單，告訴 AI 要改哪裡、怎麼改。</strong><br><span class="small muted">例如：漏掉的偏誤、判斷錯的地方、超出程度的詞、輔具的設計。</span></div></li>
+        <li><div><strong>最後一樣要請 AI 給完整的 HTML。</strong>${reqLine()}</div></li>
+        <li><div><strong>上傳或貼上修正後的 HTML，和第一版比一比。</strong></div></li>
+      </ol>
+      <div class="card ai stack">
+        <h3>紀錄</h3>
+        ${radios('ai2.llm','用哪個 AI？',LLMS,'通常和第一版一樣。')}
+        ${inp('ai2.llmNote','（選填）版本或模式','')}
+        ${ta('ai2.prompt','修正指令（整段貼上）','來回好幾次的話，全部依序貼上。','',6)}
+        ${ta('ai2.reply','AI 的回答（貼上）','程式碼不用貼在這裡。','',4)}
+        ${saveBar('ai2','儲存紀錄','ai')}
+      </div>
+      ${htmlBox('v2')}
+      <div class="card stack">
+        <h3>第一版 vs. 修正版</h3>
+        <div class="grid g2"><div class="stack" style="gap:6px"><span class="small muted">第一版</span>${pvBox('g'+S.group,'v1',true)}</div><div class="stack" style="gap:6px"><span class="small muted">修正版</span>${pvBox('g'+S.group,'v2',true)}</div></div>
+        ${ta('ai2.change','修正後，哪裡變好了？還有哪裡是 AI 改不好、需要人來把關的？','','',3)}
+        ${saveBar('ai2','儲存','ai')}
+      </div>
+    </div>`;
+  }
+  else if(p.id==='end'){
+    h=`<div class="page">
+      ${head('階段 5 · 全組一起','一句話',stageMin(5))}
+      <div class="card stack">
+        ${ta('end.share','AI 做不到、要靠我們的是＿＿','老師會把這句話投影出來。','',2)}
+        ${ta('end.redo','（選填）如果重來一次，你們的第一個 prompt 會怎麼寫？','','',4)}
+        ${saveBar('end')}
+      </div>
+      <div class="card soft"><strong>交作業</strong><p class="small" style="margin-top:4px">如果畫面上方顯示「存在本機」，請按「複製本組答案」，貼到老師指定的地方。</p></div>
+    </div>`;
+  }
+  el.innerHTML=h;
+  // 事件
+  $$('[data-jump]',el).forEach(b=>b.addEventListener('click',()=>go(PAGES.findIndex(x=>x.id===b.dataset.jump))));
+  $$('[data-copytext]',el).forEach(b=>b.addEventListener('click',()=>copyText(t.text)));
+  $$('[data-copyreq]',el).forEach(b=>b.addEventListener('click',()=>copyText(REQUIRED_LINE)));
+  const lk=$('#btnLock',el); if(lk) lk.addEventListener('click',lockNotes);
+  $$('[data-k]',el).forEach(f=>{
+    const ev=(f.type==='radio'||f.type==='checkbox')?'change':'input';
+    f.addEventListener(ev,()=>{ const k=f.dataset.k; setDraft(k,readField(k,el)); if(f.type!=='radio'&&f.type!=='checkbox') f.classList.add('dirty'); showSaved(k.split('.')[0]) });
+  });
+  $$('[data-save]',el).forEach(b=>b.addEventListener('click',()=>saveSection(b.dataset.save)));
+  renderTokLine(); renderSelBar(); renderNotes();
+  SECS.forEach(s=>showSaved(s));
+  ['v1','v2'].forEach(slot=>{ const b=$('#hb-'+slot); if(b) b.dataset.sig='' });
+  refreshDynamic();
+}
+function summaryText(){
+  const d=S.data, t=textFor(S.group), g=k=>plain(getPath(d,k));
+  return [`【語法偏誤任務單】第 ${S.group} 組`,`語料 ${t.id}（${t.level}）：${t.text}`,'',
+    '■ 1 人工標註',g('s1.notes'),`怎麼指導：${g('s1.guide')}`,'',
+    '■ 2 引導 AI',`AI：${g('ai1.llm')} ${g('ai1.llmNote')}`,`prompt：${g('ai1.prompt')}`,`AI 的分析：${g('ai1.reply')}`,`HTML：${getPath(d,'files.v1')?(g('files.v1')||'已存在這台裝置'):'未附'}`,`截圖：${g('shots.v1')}`,'',
+    '■ 3 檢核 AI',`都找到：${g('s3.hit')}`,`AI 漏掉：${g('s3.miss')}`,`AI 誤判：${g('s3.over')}`,`超出程度的詞：${g('s3.coctWords')}`,`分級觀察：${g('s3.coctNote')}`,`AI 分數：${g('s3.score')}`,`想改標註：${g('s3.rethink')}`,'',
+    '■ 4 回饋修正',`prompt 有做到：${g('p2.had')}`,`最想補上：${g('p2.missing')}`,`AI 偏好：${g('p2.bias')}`,`例子：${g('p2.biasNote')}`,`AI：${g('ai2.llm')} ${g('ai2.llmNote')}`,`修正指令：${g('ai2.prompt')}`,`AI 的回答：${g('ai2.reply')}`,`HTML：${getPath(d,'files.v2')?(g('files.v2')||'已存在這台裝置'):'未附'}`,`截圖：${g('shots.v2')}`,`改善與限制：${g('ai2.change')}`,'',
+    '■ 5 一句話',g('end.share'),`重來的 prompt：${g('end.redo')}`].join('\n');
+}
+
+// ====== 教師端 ======
+function renderTeacher(){
+  app.innerHTML=`
+  <div class="top"><div class="top-in">
+    <div class="bar"><div class="row" style="gap:8px"><span class="gname">教師端 · 語法偏誤任務</span><span class="pill" id="modeMini"></span></div>
+      <div class="row" style="gap:6px"><button class="btn ghost sm" id="btnExport">匯出 CSV</button><button class="btn ghost sm" id="btnExportJson">匯出 JSON</button><button class="btn ghost sm" id="btnBack">學生入口</button></div></div>
+    <nav class="rail" id="tRail"><button data-tab="overview">進度總覽</button><button data-tab="group">各組答案</button><button data-tab="proj">投影討論</button></nav>
+    <div id="tStageBar"></div>
+  </div></div>
+  <main class="wrap wide"><div id="tBody" class="page"></div></main>`;
+  $$('[data-tab]',app).forEach(b=>b.addEventListener('click',()=>{ S.t.tab=b.dataset.tab; S.t.sig=''; renderTeacherBody() }));
+  $('#btnBack').addEventListener('click',()=>{ S.view='login'; render() });
+  $('#btnExport').addEventListener('click',exportCSV);
+  $('#btnExportJson').addEventListener('click',exportJSON);
+  S.t.sig=''; renderModePill(); renderTeacherStageBar(); renderTeacherBody();
+}
+function renderTeacherStageBar(){
+  const el=$('#tStageBar'); if(!el) return;
+  const cur=S.cls&&S.cls.stage;
+  el.innerHTML=`<div class="row" style="gap:6px"><span class="small muted">通知全班目前階段：</span>${STAGES.map(s=>`<button class="btn sm ${cur===s.n?'':'ghost'}" data-st="${s.n}" title="網站 ${s.part||1}">${s.n} ${esc(s.title)}</button>`).join('')}<button class="btn sm ghost" data-st="0">清除</button><span class="timer" id="clsTimer"></span></div>`;
+  $$('[data-st]',el).forEach(b=>b.addEventListener('click',async()=>{ if(!remote()){ toast('沒有連到試算表'); return } try{ await S.store.saveSettings({stage:+b.dataset.st,stageStartedAt:now()}); toast(+b.dataset.st?'已通知階段 '+b.dataset.st:'已清除') }catch(e){ toast('沒有成功，請再試一次') } }));
+  const st=STAGES.find(s=>s.n===cur); if(st) tickClass(S.cls.stageStartedAt?new Date(S.cls.stageStartedAt).getTime():null,st.min);
+}
+const gdoc=g=>S.t.groups['g'+g]||{};
+const DOTS=[['標註','s1'],['AI 第一版','ai1'],['檢核','s3'],['反思','p2'],['修正','ai2'],['一句話','end']];
+// 每個詞有幾組標了（同一組標兩次只算一次）
+function heatFor(t){
+  const cnt=new Array(t.tokens.length).fill(0), types=t.tokens.map(()=>({})); let n=0;
+  t.groups.forEach(g=>{ const notes=getPath(gdoc(g),'s1.notes')||[]; if(!notes.length) return; n++; const seen=new Set();
+    notes.forEach(nt=>(nt.toks||[]).forEach(i=>{ if(cnt[i]==null) return; if(!seen.has(i)){ cnt[i]++; seen.add(i) } if(nt.type) types[i][nt.type]=(types[i][nt.type]||0)+1 })) });
+  const html=t.tokens.map((tok,i)=>{ const r=n?cnt[i]/n:0;
+    const st=r?`background:color-mix(in srgb, var(--mark) ${Math.round(20+r*60)}%, var(--surface));${r>0.5?'color:var(--accent-fg);font-weight:700':''}`:'';
+    const tip=cnt[i]?`${cnt[i]} 組 · `+Object.entries(types[i]).map(([k,v])=>k+' '+v).join('、'):'';
+    return `<span class="tok" style="${st}" title="${esc(tip)}">${tok.trim()?esc(tok):'&nbsp;'}${cnt[i]?`<sup style="color:inherit">${cnt[i]}</sup>`:''}</span>` }).join('');
+  return {n,html};
+}
+function bars(items,total){
+  return `<div class="bars">${items.map(([label,c])=>`<div class="b"><span>${esc(label)}</span><span class="track"><span class="fill" style="display:block;width:${total?Math.round(c/total*100):0}%"></span></span><span class="num">${c}/${total}</span></div>`).join('')}</div>`;
+}
+function loadScript(src){ return new Promise((res,rej)=>{ if([...document.scripts].some(s=>s.src===src)){ res(); return } const s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=rej; document.head.appendChild(s) }) }
+function drawQRs(root){
+  const els=$$('[data-qr]',root); if(!els.length) return;
+  loadScript('https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js').then(()=>{
+    els.forEach(el=>{ el.innerHTML=''; try{ new window.QRCode(el,{text:el.dataset.qr,width:120,height:120,correctLevel:window.QRCode.CorrectLevel.M}) }catch(e){} });
+  }).catch(()=>els.forEach(el=>{ el.textContent='QR code 載入失敗' }));
+}
+function teacherSig(){
+  const t=S.t, G=t.groups;
+  if(t.tab==='group') return 'group:'+t.sel+':'+JSON.stringify(G['g'+t.sel]||{});
+  if(t.tab==='proj'){ const ids=t.proj==='all'?Object.keys(G):(TEXTS.find(x=>x.id===t.proj)||TEXTS[0]).groups.map(g=>'g'+g); return 'proj:'+t.proj+':'+JSON.stringify(ids.map(id=>G[id]||null)) }
+  return 'overview:'+JSON.stringify(Object.keys(G).map(id=>[id,G[id].updatedAt,G[id].files,(G[id].shots||{})]));
+}
+function renderTeacherBody(){
+  const el=$('#tBody'); if(!el) return; const t=S.t;
+  $$('[data-tab]',app).forEach(b=>b.classList.toggle('on',b.dataset.tab===t.tab));
+  if(!remote()&&S.mode!=='pending'){ el.innerHTML=`<div class="card"><h2>沒有連到試算表</h2><p style="margin-top:8px">請在 <code>content/config.js</code> 填入 Google Apps Script 網址（見 backend/README.md）。顯示「存在本機」的組別，請他們按「複製本組答案」交給你。</p></div>`; t.sig=''; return }
+  // 輪詢時資料沒變就不重畫，避免預覽一直重新載入
+  const sig=teacherSig(); if(sig===t.sig&&el.childElementCount) return; t.sig=sig;
+  const ans=v=>`<div class="ans ${v?'':'empty'}">${v?esc(v):'（尚未填寫）'}</div>`;
+  if(t.tab==='overview'){
+    el.innerHTML=`<div class="card stack">
+      <h2>學生網址</h2>
+      <div class="qrs">${[1,2].map(n=>PART_URL[n]?`<div class="qr"><div class="code" data-qr="${esc(PART_URL[n])}"></div><div class="stack" style="gap:6px;min-width:0"><strong>網站 ${n}</strong><span class="small muted">${n===1?'階段 1–3：標註、引導 AI、檢核':'階段 4–5：回饋修正、一句話'}</span><a class="small" href="${esc(PART_URL[n])}" target="_blank" rel="noopener" style="word-break:break-all">${esc(PART_URL[n])}</a><button class="btn sm ghost" data-copyurl="${n}" style="align-self:flex-start">複製網址</button></div></div>`:'').join('')}</div>
+    </div>
+    <div class="card stack">
+      <div class="row between"><h2>各組進度</h2><span class="small muted">已開始 ${Object.keys(t.groups).length} / ${TOTAL_GROUPS} 組</span></div>
+      <div class="ggrid">${Array.from({length:TOTAL_GROUPS},(_,i)=>i+1).map(g=>{ const d=gdoc(g), tx=textFor(g); return `<button class="gcell" data-g="${g}"><div class="n">第 ${g} 組</div><div class="small muted">語料 ${tx.id} · ${esc(tx.level)}${d.updatedAt?' · '+fmtTime(d.updatedAt):''}</div><div class="dots" title="${DOTS.map(x=>x[0]).join(' / ')}">${DOTS.map(([,s])=>`<span class="${secDone(s,d)?'on':''}"></span>`).join('')}</div></button>` }).join('')}</div>
+      <p class="small muted">六格依序是：${DOTS.map(x=>x[0]).join('、')}。點一組看答案。</p>
+    </div>`;
+    $$('[data-g]',el).forEach(b=>b.addEventListener('click',()=>{ t.sel=+b.dataset.g; t.tab='group'; renderTeacherBody() }));
+    $$('[data-copyurl]',el).forEach(b=>b.addEventListener('click',()=>copyText(PART_URL[b.dataset.copyurl])));
+    drawQRs(el);
+  }
+  else if(t.tab==='group'){
+    const g=t.sel, tx=textFor(g), d=gdoc(g), G=k=>getPath(d,k), notes=G('s1.notes')||[];
+    const marked=new Map(); notes.forEach((n,ni)=>(n.toks||[]).forEach(i=>marked.set(i,ni)));
+    const shotsOf=slot=>(G('shots.'+slot)||[]).length?`<div class="shots">${G('shots.'+slot).map(x=>shotFigure(x,slot,false)).join('')}</div>`:'';
+    const htmlCard=slot=>`<div class="pvbar"><span class="small muted">HTML ${SLOT_NAME[slot]}${G('files.'+slot)?` · ${esc(G('files.'+slot).source==='paste'?'貼上':'上傳')} · ${kb(G('files.'+slot).size||0)} · ${fmtTime(G('files.'+slot).savedAt)}`:''}</span>${G('files.'+slot)?`<span class="row" style="gap:6px"><button class="btn sm ghost" data-big="${slot}">放大</button><button class="btn sm ghost" data-dl="${slot}">下載</button>${safeUrl(G('files.'+slot).url)?`<a class="btn sm ghost" href="${esc(G('files.'+slot).url)}" target="_blank" rel="noopener">雲端硬碟</a>`:''}</span>`:''}</div>${pvBox('g'+g,slot,false)}${shotsOf(slot)}`;
+    el.innerHTML=`
+      <div class="row"><select id="selG" style="width:auto">${Array.from({length:TOTAL_GROUPS},(_,i)=>`<option value="${i+1}" ${g===i+1?'selected':''}>第 ${i+1} 組</option>`).join('')}</select><span class="small muted">語料 ${tx.id} · ${esc(tx.level)} · ${d.updatedAt?'最後更新 '+fmtTime(d.updatedAt):'尚未開始'}</span></div>
+      <div class="card human stack"><div class="row between"><span class="chip human">階段 1 · 人工標註（${notes.length} 個）</span><span class="small muted">${G('s1.locked')?'🔒 '+fmtTime(G('s1.lockedAt'))+' 鎖定':'未鎖定'}</span></div>
+        <p class="sent">${tx.tokens.map((x,i)=>`<span class="tok ${marked.has(i)?'noted':''}">${x.trim()?esc(x):'&nbsp;'}</span>`).join('')}</p>
+        ${notesSummary(d)}<span class="small muted">怎麼指導</span>${ans(G('s1.guide'))}</div>
+      <div class="card ai stack"><span class="chip ai" style="align-self:flex-start">階段 2 · 引導 AI · ${esc(G('ai1.llm')||'—')} ${esc(G('ai1.llmNote')||'')}</span>
+        <span class="small muted">prompt</span><div class="ans long ${G('ai1.prompt')?'':'empty'}">${esc(G('ai1.prompt'))||'（尚未填寫）'}</div>
+        <span class="small muted">AI 的分析</span><div class="ans long ${G('ai1.reply')?'':'empty'}">${esc(G('ai1.reply'))||'（尚未填寫）'}</div>
+        ${htmlCard('v1')}</div>
+      <div class="card stack"><h3>階段 3 · 檢核 AI <span class="chip acc">AI 分數 ${esc(G('s3.score'))||'—'}</span></h3>
+        <div class="grid g2"><div><span class="small muted">都找到</span>${ans(G('s3.hit'))}</div><div><span class="small muted">AI 漏掉</span>${ans(G('s3.miss'))}</div><div><span class="small muted">AI 誤判或改過頭</span>${ans(G('s3.over'))}</div><div><span class="small muted">超出程度的詞</span>${ans(G('s3.coctWords'))}</div><div><span class="small muted">分級觀察</span>${ans(G('s3.coctNote'))}</div><div><span class="small muted">想改標註</span>${ans(G('s3.rethink'))}</div></div></div>
+      <div class="card stack"><h3>階段 4-1 · 檢視 prompt 與反思</h3>
+        <div class="grid g2"><div class="stack" style="gap:6px"><span class="small muted">第一版 prompt 做到的（${(G('p2.had')||[]).length} / ${CHECKLIST.length}）</span><ul class="small" style="margin:0;padding-left:1.2em">${CHECKLIST.map(c=>`<li style="${(G('p2.had')||[]).includes(c)?'':'color:var(--muted);text-decoration:line-through'}">${esc(c)}</li>`).join('')}</ul><span class="small muted">最想補上</span>${ans(G('p2.missing'))}</div>
+        <div class="stack" style="gap:6px"><span class="small muted">觀察到的 AI 偏好</span>${(G('p2.bias')||[]).length?`<ul class="small" style="margin:0;padding-left:1.2em">${G('p2.bias').map(b=>`<li>${esc(b)}</li>`).join('')}</ul>`:ans('')}<span class="small muted">例子</span>${ans(G('p2.biasNote'))}</div></div></div>
+      <div class="card ai stack"><span class="chip ai" style="align-self:flex-start">階段 4-2 · 回饋修正 · ${esc(G('ai2.llm')||'—')} ${esc(G('ai2.llmNote')||'')}</span>
+        <span class="small muted">修正指令</span><div class="ans long ${G('ai2.prompt')?'':'empty'}">${esc(G('ai2.prompt'))||'（尚未填寫）'}</div>
+        <span class="small muted">AI 的回答</span><div class="ans long ${G('ai2.reply')?'':'empty'}">${esc(G('ai2.reply'))||'（尚未填寫）'}</div>
+        ${htmlCard('v2')}<span class="small muted">改善與限制</span>${ans(G('ai2.change'))}</div>
+      <div class="card stack"><h3>階段 5 · 一句話</h3>${ans(G('end.share'))}<span class="small muted">重來一次的 prompt</span>${ans(G('end.redo'))}</div>
+      ${tx.ref?`<div class="refbox"><strong>教師參考（草稿）</strong><br>${esc(tx.ref)}</div>`:''}`;
+    $('#selG').addEventListener('change',e=>{ t.sel=+e.target.value; renderTeacherBody() });
+    $$('[data-big]',el).forEach(b=>b.addEventListener('click',()=>{ const s=b.dataset.big; fetchHtml('g'+g,s,G('files.'+s)).then(h=>openOverlay(h,`第 ${g} 組 · ${SLOT_NAME[s]}`,fileName(g,s))).catch(()=>toast('讀不到檔案')) }));
+    $$('[data-dl]',el).forEach(b=>b.addEventListener('click',()=>{ const s=b.dataset.dl; fetchHtml('g'+g,s,G('files.'+s)).then(h=>download(fileName(g,s),h,'text/html;charset=utf-8')).catch(()=>toast('讀不到檔案')) }));
+    fillPreviews(el);
+  }
+  else if(t.tab==='proj'){
+    const sw=`<div class="row">${TEXTS.map(x=>`<button class="btn sm ${t.proj===x.id?'':'ghost'}" data-ps="${x.id}">語料 ${x.id}（${esc(x.level)}，第 ${x.groups.join('、')} 組）</button>`).join('')}<button class="btn sm ${t.proj==='all'?'':'ghost'}" data-ps="all">全班總結</button></div>`;
+    if(t.proj==='all'){
+      const all=Array.from({length:TOTAL_GROUPS},(_,i)=>i+1).map(gdoc), n=all.filter(d=>d.updatedAt).length;
+      const count=(k,opts)=>opts.map(o=>[o,all.filter(d=>(getPath(d,k)||[]).includes(o)).length]);
+      const llm=LLMS.map(o=>[o,all.filter(d=>getPath(d,'ai1.llm')===o).length]).filter(x=>x[1]);
+      el.innerHTML=`<div class="page proj">${sw}
+        <div class="grid g2"><div class="card stack"><h2>用了哪個 AI</h2>${llm.length?bars(llm,n):'<p class="muted">還沒有資料。</p>'}</div>
+          <div class="card stack"><h2>AI 修正時的偏好</h2>${bars(count('p2.bias',BIASES),n)}</div></div>
+        <div class="card stack"><h2>第一版 prompt 做到了什麼</h2><p class="small muted">幾組的第一版 prompt 有這一項（學生自評）。</p>${bars(count('p2.had',CHECKLIST),n)}</div>
+        <div class="card stack"><h2>AI 做不到、要靠我們的是……</h2>${Array.from({length:TOTAL_GROUPS},(_,i)=>i+1).map(g=>{ const v=getPath(gdoc(g),'end.share'); return v?`<div class="ans"><strong>第 ${g} 組</strong>　${esc(v)}</div>`:'' }).join('')||'<p class="muted">還沒有組別寫。</p>'}</div>
+      </div>`;
+    } else {
+      const tx=TEXTS.find(x=>x.id===t.proj)||TEXTS[0], h=heatFor(tx);
+      el.innerHTML=`<div class="page proj">${sw}
+        <div class="card stack"><div class="kicker">語料 ${tx.id} · ${esc(tx.level)} · ${h.n} 組已標註</div><p class="sent">${h.html}</p><p class="small muted">顏色越深＝越多組標了這個地方；滑鼠停在詞上可以看偏誤類型。</p></div>
+        <div class="card stack"><h2>各組比較</h2><div class="scroll"><table class="tbl"><tr><th>組</th><th>標註</th><th>偏誤類型</th><th>AI</th><th>AI 漏掉</th><th>AI 誤判</th><th>超出程度的詞</th><th>分數</th></tr>${tx.groups.map(g=>{ const d=gdoc(g), notes=getPath(d,'s1.notes')||[], ty={}; notes.forEach(n=>{ if(n.type) ty[n.type]=(ty[n.type]||0)+1 }); const G=k=>esc(getPath(d,k)||'—'); return `<tr><td><strong>${g}</strong></td><td>${notes.length}</td><td>${Object.entries(ty).map(([k,v])=>esc(k)+' '+v).join('、')||'—'}</td><td>${G('ai1.llm')}</td><td>${G('s3.miss')}</td><td>${G('s3.over')}</td><td>${G('s3.coctWords')}</td><td>${G('s3.score')}</td></tr>` }).join('')}</table></div></div>
+        <div class="card stack"><h2>AI 做的輔具：第一版 → 修正版</h2><p class="small muted">點預覽可以放大操作。</p><div class="wall">${tx.groups.map(g=>`<div class="pair"><strong>第 ${g} 組</strong>${['v1','v2'].map(s=>{ const sh=getPath(gdoc(g),'shots.'+s)||[]; return `<div class="stack" style="gap:4px"><span class="small muted">${SLOT_NAME[s]}</span>${getPath(gdoc(g),'files.'+s)||!sh.length?pvBox('g'+g,s,true):shotFigure(sh[0],s,false)}</div>` }).join('')}</div>`).join('')}</div></div>
+        <div class="card stack"><h2>一句話</h2>${tx.groups.map(g=>{ const v=getPath(gdoc(g),'end.share'); return `<div class="ans ${v?'':'empty'}"><strong>第 ${g} 組</strong>　${esc(v)||'（尚未填寫）'}</div>` }).join('')}</div>
+        ${tx.ref?`<details class="card soft help"><summary>教師參考（草稿）</summary><div class="refbox" style="margin-top:8px">${esc(tx.ref)}</div></details>`:''}
+      </div>`;
+      fillPreviews(el);
+    }
+    $$('[data-ps]',el).forEach(b=>b.addEventListener('click',()=>{ t.proj=b.dataset.ps==='all'?'all':+b.dataset.ps; renderTeacherBody() }));
+  }
+}
+
+// ====== 匯出 ======
+function exportRows(){
+  const rows=[EXPORT_COLUMNS.map(c=>c[0])];
+  for(let g=1;g<=TOTAL_GROUPS;g++){ const d=gdoc(g); if(!d.updatedAt&&!d.files) continue; const tx=textFor(g);
+    rows.push(EXPORT_COLUMNS.map(([n,k])=>n==='組'?g:n==='語料'?tx.id:n==='程度'?tx.level:n==='1標註數'?(getPath(d,'s1.notes')||[]).length:plain(getPath(d,k)))) }
+  return rows;
+}
+async function download(filename,data,type){
+  try{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([data],{type:type||'text/plain;charset=utf-8'})); a.download=filename; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove() },500); return true }catch(e){ return false }
+}
+const stamp=()=>new Date().toISOString().slice(0,10);
+async function exportCSV(){
+  const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const csv='﻿'+exportRows().map(r=>r.map(q).join(',')).join('\n');
+  if(!(await download('語法偏誤任務-'+stamp()+'.csv',csv,'text/csv;charset=utf-8'))) copyText(csv).then(()=>toast('已複製 CSV，可貼到試算表'));
+}
+async function exportJSON(){
+  const json=JSON.stringify({exportedAt:now(),mode:S.mode,groups:S.t.groups},null,2);
+  if(!(await download('語法偏誤任務-'+stamp()+'.json',json,'application/json'))) copyText(json).then(()=>toast('已複製 JSON'));
+}
+
+// ====== 啟動 ======
+if(S.group) loadGroup();
+render();
+initStore();
+})();
+</script>
+</body>
+</html>
