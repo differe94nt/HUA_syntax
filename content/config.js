@@ -19,7 +19,7 @@ window.SYN_CONFIG = {
   // ---- 學生答案要存到哪裡 ----
   // 填了 Google Apps Script 網址：答案存到你的 Google 試算表，HTML 成品與截圖存到你的雲端硬碟
   // （設定步驟見 backend/README.md）。空白：只存在學生自己的裝置，最後用「複製本組答案」交卷。
-  sheetEndpoint: '',               // 例：'https://script.google.com/macros/s/XXXX/exec'
+  sheetEndpoint: 'https://script.google.com/macros/s/AKfycbzmJmvohsquhq03G0MpQeukKAW5k-ytLOTzNM7E-pp1kNEJLH0eUEjHt_DzmcDWhGSr/exec',               // 例：'https://script.google.com/macros/s/XXXX/exec'
   sheetPollSeconds: 8,
 
   // ---- 階段（教師端「通知全班目前階段」與學生端橫幅）----
@@ -29,7 +29,7 @@ window.SYN_CONFIG = {
     { n: 2, title: '引導 AI',  min: 7, part: 1 },
     { n: 3, title: '檢核 AI',  min: 5, part: 1 },
     { n: 4, title: '回饋修正', min: 6, part: 2 },
-    { n: 5, title: '一句話',   min: 2, part: 2 },
+    { n: 5, title: '學到的一件事情',   min: 2, part: 2 },
   ],
 
   // ---- 階段 2 唯一的規定：prompt 最後一定要加的一句話（學生可以一鍵複製）----
