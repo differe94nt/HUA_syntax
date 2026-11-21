@@ -603,7 +603,7 @@ function subscribeGroup(){
     // 只接受不比手上舊的資料，避免輪詢時把剛存的答案蓋掉
     if(S.data.updatedAt&&data.updatedAt&&data.updatedAt<S.data.updatedAt) return;
     const wasLocked=isLocked(), oldNotes=getPath(S.data,'s1.notes')||[];
-    const wasReset=!!data.resetAt&&data.resetAt!==S.data.resetAt;
+    const wasReset=!!data.resetAt&&data.resetAt!==S.data.resetAt&&!!S.data.updatedAt&&S.data.updatedAt<data.resetAt;   // 新裝置第一次載入不算
     S.data=data; lsSet(LS.data+S.group,S.data);
     if(wasReset){ afterReset(); return }
     if(isLocked()){ Object.keys(S.draft).filter(k=>k==='s1.notes'||k==='s1.guide').forEach(k=>delete S.draft[k]) }
