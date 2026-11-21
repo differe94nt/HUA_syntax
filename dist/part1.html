@@ -1005,9 +1005,14 @@ function afterReset(){
   if(S.view!=='student') return;
   S.page=0; lsSet(LS.page,0); renderStudent(); toast('測試組已清空，可以重新開始');
 }
+// 解鎖：保留 lockedAt，老師看得到「曾經鎖定、後來解鎖」；每一次鎖定／解鎖也都記在 history
+async function unlockNotes(){
+  if(!confirm('解鎖後可以修改標註，改完要再鎖定一次才能回到 AI 的頁面。老師會看到你們解鎖過。確定要解鎖嗎？')) return;
+  if(await saveSection('s1',{locked:false})){ renderPage(); toast('已解鎖，可以修改標註') }
+}
 async function lockNotes(){
   if(!notesNow().length){ toast('先在階段 1 至少標出一個偏誤'); go(PAGES.findIndex(p=>p.id==='s1')); return }
-  if(!confirm('鎖定之後，階段 1 的標註就不能再修改。確定要鎖定嗎？')) return;
+  if(!confirm('鎖定之後，階段 1 的標註就先不要再改（真的需要時可以解鎖，但老師會看到）。確定要鎖定嗎？')) return;
   await saveSection('s1',{locked:true,lockedAt:now()});
   renderPage();
 }
@@ -1047,7 +1052,9 @@ function renderPage(){
   else if(p.id==='s1'){
     h=`<div class="page">
       ${head('階段 1 · 全組一起','人工標註：找出語法偏誤',stageMin(1))}
-      ${locked?`<div class="lockbox">🔒 標註已在 ${fmtTime(getPath(S.data,'s1.lockedAt'))} 鎖定，不能再修改。看完 AI 的分析後想改，請寫在階段 3 的最後一題。</div>`:`
+      ${locked?`<div class="lockbox stack" style="gap:8px"><span>🔒 標註已在 ${fmtTime(getPath(S.data,'s1.lockedAt'))} 鎖定。看完 AI 的分析後想改，請寫在階段 3 的最後一題。</span>
+        <span class="row between"><span class="small muted">真的需要修改（例如按錯、漏存）？可以解鎖，改完再鎖定一次。老師會看到你們解鎖過。</span><button class="btn sm ghost" id="btnUnlock">🔓 解鎖修改</button></span></div>`
+      :getPath(S.data,'s1.lockedAt')?`<div class="lockbox">🔓 標註已解鎖（原本在 ${fmtTime(getPath(S.data,'s1.lockedAt'))} 鎖定）。改完記得儲存，再到階段 2 重新鎖定；你們存的 prompt、AI 回答、HTML 都還在。</div>`:`
       <ol class="todo">
         <li><div><strong>先不要問 AI，也不要查資料。</strong><br><span class="small muted">用你們的語感和語法知識判斷。</span></div></li>
         <li><div><strong>點選有問題的詞，按「＋ 新增標註」。</strong><br><span class="small muted">可以選好幾個詞（例如錯序）；少了東西（遺漏）就點它前後的詞。標點和空格也可以點。</span></div></li>
@@ -1074,7 +1081,7 @@ function renderPage(){
         ${head('階段 2 · 全組一起','引導 AI',stageMin(2),'ai')}
         <div class="card stack">
           <h3>先鎖定你們的標註</h3>
-          <p>鎖定之後，階段 1 的標註就不能再修改。這樣等一下才能公平地比較「你們的判斷」和「AI 的判斷」。</p>
+          <p>鎖定之後，階段 1 的標註就先不要再改。這樣等一下才能公平地比較「你們的判斷」和「AI 的判斷」。${getPath(S.data,'s1.lockedAt')?'<br><strong>你們剛剛解鎖過；重新鎖定後，之前存的 prompt、AI 回答、HTML 都會回來。</strong>':''}</p>
           <p class="small ${n?'muted':'status warn'}">目前有 ${n} 個標註${dirty?'，還有沒儲存的修改（鎖定時會一起儲存）':''}。</p>
           <div class="row"><button class="btn" id="btnLock" ${n?'':'disabled'}>🔒 鎖定標註，開始問 AI</button><button class="btn ghost" data-jump="s1">← 回階段 1</button></div>
         </div>
@@ -1210,6 +1217,7 @@ function renderPage(){
   $$('[data-copytext]',el).forEach(b=>b.addEventListener('click',()=>copyText(t.text)));
   $$('[data-copyreq]',el).forEach(b=>b.addEventListener('click',()=>copyText(REQUIRED_LINE)));
   const lk=$('#btnLock',el); if(lk) lk.addEventListener('click',lockNotes);
+  const ul=$('#btnUnlock',el); if(ul) ul.addEventListener('click',unlockNotes);
   bindTest(el);
   $$('[data-k]',el).forEach(f=>{
     const ev=(f.type==='radio'||f.type==='checkbox')?'change':'input';
@@ -1314,7 +1322,7 @@ function renderTeacherBody(){
       <div class="row"><select id="selG" style="width:auto">${Array.from({length:TOTAL_GROUPS},(_,i)=>`<option value="${i+1}" ${g===i+1?'selected':''}>第 ${i+1} 組</option>`).join('')}<option value="${TEST}" ${g===TEST?'selected':''}>🧪 測試組</option></select><span class="small muted">語料 ${tx.id} · ${esc(tx.level)} · ${d.updatedAt?'最後更新 '+fmtTime(d.updatedAt):'尚未開始'}</span></div>
       ${g===TEST?testCard():''}
       <p class="small muted">這裡顯示每組最新的答案。每一次儲存、每一版 HTML 都另外記在試算表的 history 工作表（含舊版檔案連結）。</p>
-      <div class="card human stack"><div class="row between"><span class="chip human">階段 1 · 人工標註（${notes.length} 個）</span><span class="small muted">${G('s1.locked')?'🔒 '+fmtTime(G('s1.lockedAt'))+' 鎖定':'未鎖定'}</span></div>
+      <div class="card human stack"><div class="row between"><span class="chip human">階段 1 · 人工標註（${notes.length} 個）</span><span class="row" style="gap:6px"><span class="small muted">${G('s1.locked')?'🔒 '+fmtTime(G('s1.lockedAt'))+' 鎖定':G('s1.lockedAt')?'🔓 已解鎖（'+fmtTime(G('s1.lockedAt'))+' 鎖定過）':'未鎖定'}</span>${G('s1.locked')&&remote()?'<button class="btn sm ghost" data-tunlock>幫這組解鎖</button>':''}</span></div>
         <p class="sent">${tx.tokens.map((x,i)=>`<span class="tok ${marked.has(i)?'noted':''}">${x.trim()?esc(x):'&nbsp;'}</span>`).join('')}</p>
         ${notesSummary(d)}<span class="small muted">怎麼指導</span>${ans(G('s1.guide'))}</div>
       <div class="card ai stack"><span class="chip ai" style="align-self:flex-start">階段 2 · 引導 AI · ${esc(G('ai1.llm')||'—')} ${esc(G('ai1.llmNote')||'')}</span>
@@ -1334,6 +1342,14 @@ function renderTeacherBody(){
       ${tx.ref?`<div class="refbox"><strong>教師參考（草稿）</strong><br>${esc(tx.ref)}</div>`:''}`;
     $('#selG').addEventListener('change',e=>{ t.sel=+e.target.value; renderTeacherBody() });
     bindTest(el);
+    const tu=$('[data-tunlock]',el); if(tu) tu.addEventListener('click',async()=>{
+      if(!confirm(gName(g)+'的標註會解鎖，學生可以修改，改完要再鎖定一次。確定嗎？')) return;
+      try{ const p={sec:'s1',set:{locked:false},text:tx.id}; let doc;
+        try{ doc=await S.store.patchGroup('g'+g,p) }
+        catch(e){ if(!/type 不合法/.test(e&&e.message||'')) throw e; doc=Object.assign({},d,{s1:Object.assign({},d.s1,{locked:false,at:now()}),updatedAt:now()}); delete doc.files; delete doc.shots; await S.store.saveGroup('g'+g,doc) }
+        S.t.groups=Object.assign({},S.t.groups,{['g'+g]:Object.assign({},d,doc)}); t.sig=''; renderTeacherBody(); toast('已解鎖')
+      }catch(e){ toast('沒有成功：'+(e&&e.message||e)) }
+    });
     $$('[data-big]',el).forEach(b=>b.addEventListener('click',()=>{ const s=b.dataset.big; fetchHtml('g'+g,s,G('files.'+s)).then(h=>openOverlay(h,`${gName(g)} · ${SLOT_NAME[s]}`,fileName(g,s))).catch(()=>toast('讀不到檔案')) }));
     $$('[data-dl]',el).forEach(b=>b.addEventListener('click',()=>{ const s=b.dataset.dl; fetchHtml('g'+g,s,G('files.'+s)).then(h=>download(fileName(g,s),h,'text/html;charset=utf-8')).catch(()=>toast('讀不到檔案')) }));
     fillPreviews(el);
