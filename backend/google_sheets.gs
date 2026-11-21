@@ -36,15 +36,10 @@ const SHEET_FILES = 'files';
 const SHEET_UPLOADS = 'uploads';
 const SHEET_HISTORY = 'history';
 const TEST_GROUP = 'g0';
-// 每一段可以存的欄位（和網站裡的 FIELDS 一致）
-const SEC_FIELDS = {
-  s1: ['notes', 'guide', 'locked', 'lockedAt'],
-  ai1: ['llm', 'llmNote', 'prompt', 'reply'],
-  s3: ['hit', 'miss', 'over', 'coctWords', 'coctNote', 'score', 'rethink'],
-  p2: ['had', 'missing', 'bias', 'biasNote'],
-  ai2: ['llm', 'llmNote', 'prompt', 'reply', 'change'],
-  end: ['share', 'redo'],
-};
+// 可以存的段落。欄位名稱只要是英數字就收（之後網站加欄位，不用重新部署後端）
+const SECTIONS = ['s1', 'ai1', 's3', 'p2', 'ai2', 'end'];
+const FIELD_RE = /^[a-z][A-Za-z0-9]{0,23}$/;
+const MAX_FIELDS = 30;
 const UPLOAD_FOLDER_NAME = '語法偏誤AI輔具_成品';
 // true：截圖設為「知道連結的人可以檢視」，教師端才看得到縮圖。HTML 檔不會對外分享。
 const SHARE_UPLOADS_WITH_LINK = true;
@@ -59,11 +54,13 @@ const GROUP_COLUMNS = [
   ['語料', 'text'],
   ['1標註', 's1.notes'], ['1怎麼指導', 's1.guide'], ['1鎖定時間', 's1.lockedAt'],
   ['2用哪個AI', 'ai1.llm'], ['2AI版本', 'ai1.llmNote'], ['2prompt', 'ai1.prompt'], ['2AI分析', 'ai1.reply'],
+  ['2生成結果', 'ai1.status'], ['2結果說明', 'ai1.statusNote'],
   ['2HTML第一版', 'files.v1'], ['2截圖', 'shots.v1'],
   ['3都找到', 's3.hit'], ['3AI漏掉', 's3.miss'], ['3AI誤判', 's3.over'], ['3超出程度的詞', 's3.coctWords'],
   ['3分級觀察', 's3.coctNote'], ['3AI分數', 's3.score'], ['3想改標註', 's3.rethink'],
   ['4prompt有做到', 'p2.had'], ['4最想補上', 'p2.missing'], ['4AI偏好', 'p2.bias'], ['4偏好例子', 'p2.biasNote'],
   ['4用哪個AI', 'ai2.llm'], ['4AI版本', 'ai2.llmNote'], ['4修正指令', 'ai2.prompt'], ['4AI回答', 'ai2.reply'],
+  ['4生成結果', 'ai2.status'], ['4結果說明', 'ai2.statusNote'],
   ['4HTML第二版', 'files.v2'], ['4截圖', 'shots.v2'], ['4改善與限制', 'ai2.change'],
   ['5一句話', 'end.share'], ['5重來的prompt', 'end.redo'],
 ];
@@ -130,10 +127,10 @@ function docWithExtras_(groupId, doc) {
 function patchGroup_(groupId, body) {
   checkGroup_(groupId);
   const sec = String(body.sec || '');
-  const allowed = SEC_FIELDS[sec];
-  if (!allowed) throw new Error('段落不合法');
-  const set = (body.set && typeof body.set === 'object') ? body.set : {};
-  Object.keys(set).forEach(k => { if (allowed.indexOf(k) < 0) throw new Error('欄位不合法：' + k); });
+  if (SECTIONS.indexOf(sec) < 0) throw new Error('段落不合法');
+  const set = (body.set && typeof body.set === 'object' && !Array.isArray(body.set)) ? body.set : {};
+  if (Object.keys(set).length > MAX_FIELDS) throw new Error('欄位太多');
+  Object.keys(set).forEach(k => { if (!FIELD_RE.test(k) || k === 'at') throw new Error('欄位不合法：' + k); });
   const ops = (body.notes && typeof body.notes === 'object') ? body.notes : null;
   if (ops && sec !== 's1') throw new Error('只有階段 1 有標註');
 

@@ -343,6 +343,9 @@ const TYPES=C.errorTypes||['遺漏','誤加','誤代','錯序','其他'];
 const CHECKLIST=C.checklist||[];
 const BIASES=C.biases||[];
 const LLMS=['ChatGPT','Claude','Gemini','Copilot','其他'];
+// AI 做得怎麼樣：失敗也要交，網站 2 會回頭看 prompt 哪裡不夠
+const RESULTS=['成功：做出可以用的網頁','部分成功：有網頁，但有些地方壞掉或不完整','失敗：沒做出網頁、打不開，或 AI 拒絕、卡住'];
+const resShort=v=>String(v||'').split('：')[0];
 const STAGES=C.stages||[];
 const TEXTS=(C.texts||[]).map(t=>{ const tokens=t.toks.split('|'); return Object.assign({},t,{tokens,text:tokens.join('')}) });
 // 第 0 組＝測試組：老師示範用，可以換語料、清空重來，不列入全班統計
@@ -368,20 +371,20 @@ const PAGES=PART===1?[
 // 每一段存哪些欄位（儲存時從草稿或資料裡收集）
 const FIELDS={
   s1:['notes','guide'],
-  ai1:['llm','llmNote','prompt','reply'],
+  ai1:['llm','llmNote','prompt','reply','status','statusNote'],
   s3:['hit','miss','over','coctWords','coctNote','score','rethink'],
   p2:['had','missing','bias','biasNote'],
-  ai2:['llm','llmNote','prompt','reply','change'],
+  ai2:['llm','llmNote','prompt','reply','status','statusNote','change'],
   end:['share','redo'],
 };
 const SECS=Object.keys(FIELDS);
 // 匯出用的欄位（教師端 CSV；backend/google_sheets.gs 的試算表欄位也一樣）
 const EXPORT_COLUMNS=[['組'],['語料'],['程度'],
   ['1標註','s1.notes'],['1標註數'],['1怎麼指導','s1.guide'],['1鎖定時間','s1.lockedAt'],
-  ['2用哪個AI','ai1.llm'],['2AI版本','ai1.llmNote'],['2prompt','ai1.prompt'],['2AI分析','ai1.reply'],['2HTML第一版','files.v1'],['2截圖','shots.v1'],
+  ['2用哪個AI','ai1.llm'],['2AI版本','ai1.llmNote'],['2prompt','ai1.prompt'],['2AI分析','ai1.reply'],['2生成結果','ai1.status'],['2結果說明','ai1.statusNote'],['2HTML第一版','files.v1'],['2截圖','shots.v1'],
   ['3都找到','s3.hit'],['3AI漏掉','s3.miss'],['3AI誤判','s3.over'],['3超出程度的詞','s3.coctWords'],['3分級觀察','s3.coctNote'],['3AI分數','s3.score'],['3想改標註','s3.rethink'],
   ['4prompt有做到','p2.had'],['4最想補上','p2.missing'],['4AI偏好','p2.bias'],['4偏好例子','p2.biasNote'],
-  ['4用哪個AI','ai2.llm'],['4AI版本','ai2.llmNote'],['4修正指令','ai2.prompt'],['4AI回答','ai2.reply'],['4HTML第二版','files.v2'],['4截圖','shots.v2'],['4改善與限制','ai2.change'],
+  ['4用哪個AI','ai2.llm'],['4AI版本','ai2.llmNote'],['4修正指令','ai2.prompt'],['4AI回答','ai2.reply'],['4生成結果','ai2.status'],['4結果說明','ai2.statusNote'],['4HTML第二版','files.v2'],['4截圖','shots.v2'],['4改善與限制','ai2.change'],
   ['5一句話','end.share'],['5重來的prompt','end.redo'],['更新時間','updatedAt']];
 
 // ====== 小工具 ======
@@ -556,7 +559,7 @@ async function saveSection(sec,extra){
   try{
     let doc;
     try{ doc=await S.store.patchGroup(gid,patch) }
-    catch(e){ if(!remote()||!/type 不合法/.test(e&&e.message||'')) throw e;
+    catch(e){ if(!remote()||!/type 不合法|欄位不合法/.test(e&&e.message||'')) throw e;
       doc=applyPatch(S.data,patch); await S.store.saveGroup(gid,doc) }   // 後端還是舊版：整份存
     if(gid!=='g'+S.group) return false;   // 存的時候換組了
     S.data=doc; lsSet(LS.data+S.group,S.data);
@@ -878,10 +881,10 @@ function go(i){ if(i<0||i>=PAGES.length) return; S.page=i; lsSet(LS.page,i); ren
 function secDone(sec,d){
   d=d||S.data; const G=k=>getPath(d,k);
   return sec==='s1'?!!G('s1.locked')
-    : sec==='ai1'?!!(G('ai1.prompt')&&(G('files.v1')||(G('shots.v1')||[]).length))
+    : sec==='ai1'?!!(G('ai1.prompt')&&(G('files.v1')||(G('shots.v1')||[]).length||G('ai1.status')))
     : sec==='s3'?!!G('s3.score')
     : sec==='p2'?!!((G('p2.had')||[]).length||(G('p2.bias')||[]).length||G('p2.biasNote'))
-    : sec==='ai2'?!!(G('ai2.prompt')&&(G('files.v2')||(G('shots.v2')||[]).length))
+    : sec==='ai2'?!!(G('ai2.prompt')&&(G('files.v2')||(G('shots.v2')||[]).length||G('ai2.status')))
     : sec==='end'?!!G('end.share') : false;
 }
 function renderRail(){
@@ -1021,10 +1024,34 @@ async function lockNotes(){
 // data-derived 的區塊會在組員儲存後自動更新
 const DERIVED={
   ours:()=>notesSummary(S.data)+(getPath(S.data,'s1.guide')?`<span class="small muted">怎麼指導</span><div class="ans">${esc(getPath(S.data,'s1.guide'))}</div>`:''),
-  aiReply:()=>{ const r=getPath(S.data,'ai1.reply'); return `<p class="small muted">${esc(getPath(S.data,'ai1.llm')||'AI')}${getPath(S.data,'ai1.llmNote')?' · '+esc(getPath(S.data,'ai1.llmNote')):''}</p><div class="ans long ${r?'':'empty'}">${r?esc(r):'（階段 2 還沒貼上 AI 的分析）'}</div>` },
+  aiReply:()=>{ const r=getPath(S.data,'ai1.reply'); return `<p class="small muted">${esc(getPath(S.data,'ai1.llm')||'AI')}${getPath(S.data,'ai1.llmNote')?' · '+esc(getPath(S.data,'ai1.llmNote')):''}</p>${resultLine('ai1')}<div class="ans long ${r?'':'empty'}">${r?esc(r):'（網站 1 還沒貼上 AI 的回覆）'}</div>` },
   s3sum:()=>{ const G=k=>esc(getPath(S.data,k)||''); return `<div class="grid g2"><div><span class="small muted">AI 漏掉的</span><div class="ans ${G('s3.miss')?'':'empty'}">${G('s3.miss')||'—'}</div></div><div><span class="small muted">AI 誤判或改過頭的</span><div class="ans ${G('s3.over')?'':'empty'}">${G('s3.over')||'—'}</div></div><div><span class="small muted">超出程度的詞</span><div class="ans ${G('s3.coctWords')?'':'empty'}">${G('s3.coctWords')||'—'}</div></div><div><span class="small muted">AI 分數</span><div class="ans ${G('s3.score')?'':'empty'}">${G('s3.score')||'—'} / 5</div></div></div>` },
-  prompt1:()=>{ const p=getPath(S.data,'ai1.prompt'); return `<div class="ans long ${p?'':'empty'}">${p?esc(p):'（網站 1 還沒儲存 prompt）'}</div>` },
+  prompt1:()=>{ const p=getPath(S.data,'ai1.prompt'); return `<div class="ans long ${p?'':'empty'}">${p?esc(p):'（網站 1 還沒儲存 prompt）'}</div>${resultLine('ai1')}` },
 };
+// 「結果如何」那一行：成功／部分成功／失敗＋說明
+function resultLine(sec,d){
+  d=d||S.data; const s=getPath(d,sec+'.status'), n=getPath(d,sec+'.statusNote');
+  if(!s&&!n) return '';
+  const k=resShort(s), cls=k==='成功'?'human':k==='失敗'?'mark':'acc';
+  return `<div class="small"><span class="chip ${cls}">${esc(k||'結果未選')}</span>${n?' '+esc(n):''}</div>`;
+}
+// 交 AI 的成果：prompt、AI 的回覆、結果如何、HTML（第一版 v1／修正版 v2 共用）
+function resultBlock(sec,slot){
+  const v1=slot==='v1';
+  return `<div class="card ai stack">
+      <h3>${v1?'交 AI 的成果':'交修正後的成果'}</h3>
+      <p class="small muted">做成功、只做一半、完全失敗，都要交。失敗也沒關係，照實記下來，${v1?'網站 2 會回頭看 prompt 哪裡可以更好':'和第一版比一比'}。</p>
+      ${radios(sec+'.llm','用哪個 AI？',LLMS,v1?'':'通常和第一版一樣。')}
+      ${inp(sec+'.llmNote','（選填）版本或模式',v1?'例：免費版、GPT-5、Gemini 2.5 Flash':'')}
+      ${ta(sec+'.prompt',v1?'你們的 prompt（整段貼上）':'修正指令（整段貼上）','追問或來回好幾次的話，全部依序貼上，中間空一行。','',6)}
+      ${ta(sec+'.reply','AI 的回覆（整段貼上）','分析、說明、程式碼都可以一起貼。裡面有 HTML 程式碼的話，按下面的「從回覆抽出 HTML」就能直接預覽。','',6)}
+      <div class="row"><button type="button" class="btn sm ghost" data-fromreply="${slot}" data-sec="${sec}">從回覆抽出 HTML，存成${SLOT_NAME[slot]} →</button></div>
+      ${radios(sec+'.status','AI 做得怎麼樣？',RESULTS)}
+      ${ta(sec+'.statusNote','發生了什麼事？（選填）','例：AI 只給說明沒給程式碼、程式碼不完整、按鈕按了沒反應、AI 先問了我們問題……','',2)}
+      ${saveBar(sec,'儲存','ai')}
+    </div>
+    ${htmlBox(slot)}`;
+}
 const derived=(name,tag)=>`<${tag||'div'} class="stack" data-derived="${name}">${DERIVED[name]()}</${tag||'div'}>`;
 
 function renderPage(){
@@ -1100,16 +1127,8 @@ function renderPage(){
           ${reqLine()}
           <p class="small">用平板、不方便下載檔案的話，就請 AI 給程式碼，等一下直接貼上。</p>
         </div>
-        <div class="card ai stack">
-          <h3>紀錄</h3>
-          ${radios('ai1.llm','用哪個 AI？',LLMS)}
-          ${inp('ai1.llmNote','（選填）版本或模式','例：免費版、GPT-5、Gemini 2.5 Flash')}
-          ${ta('ai1.prompt','你們的 prompt（整段貼上）','追問了不只一次的話，全部依序貼上，中間空一行。','',6)}
-          ${ta('ai1.reply','AI 的分析（貼上）','AI 說了哪些錯誤、怎麼改、為什麼。程式碼不用貼在這裡；如果分析都寫在網頁裡，就寫「在網頁裡」。','',5)}
-          ${saveBar('ai1','儲存紀錄','ai')}
-        </div>
-        ${htmlBox('v1')}
-        <div class="card soft row between"><span class="small">輔具做好、存好了？到階段 3 檢核 AI。</span><button class="btn ghost sm" data-jump="s3">前往階段 3 →</button></div>
+        ${resultBlock('ai1','v1')}
+        <div class="card soft row between"><span class="small">交好了？到階段 3 檢核 AI（在那裡也看得到、改得到這些成果）。</span><button class="btn ghost sm" data-jump="s3">前往階段 3 →</button></div>
       </div>`;
     }
   }
@@ -1118,10 +1137,10 @@ function renderPage(){
     h=`<div class="page">
       ${head('階段 3 · 全組一起','檢核 AI',stageMin(3))}
       <p>把 AI 的結果和你們自己的標註放在一起比。你們是老師，AI 是助手。</p>
-      <div class="grid g2">
-        <div class="card human stack"><span class="chip human" style="align-self:flex-start">你們的標註</span>${derived('ours')}</div>
-        <div class="card ai stack"><span class="chip ai" style="align-self:flex-start">AI 的分析</span>${derived('aiReply')}${pvBox('g'+S.group,'v1',true)}<span class="small muted">點預覽可以放大操作。</span></div>
-      </div>
+      <div class="card human stack"><span class="chip human" style="align-self:flex-start">你們的標註</span>${derived('ours')}</div>
+      ${locked?`<div class="stack" style="gap:4px"><span class="kicker ai">AI 的成果</span><span class="small muted">階段 2 還沒交的話，直接在這裡交；交過了，也可以在這裡修改或重傳。</span></div>
+      ${resultBlock('ai1','v1')}`
+      :`<div class="card soft row between"><span class="small">還沒鎖定標註。請先到階段 2 鎖定，再請 AI 分析、交成果。</span><button class="btn ghost sm" data-jump="ai1">前往階段 2 →</button></div>`}
       <div class="card stack">
         <h3>比一比</h3>
         ${ta('s3.hit','① 都找到的：你們有標，AI 也找到了','','',2)}
@@ -1150,7 +1169,7 @@ function renderPage(){
       ${textCard(true)}
       <div class="grid g2">
         <div class="card human stack"><span class="chip human" style="align-self:flex-start">你們的標註</span>${derived('ours')}</div>
-        <div class="card ai stack"><span class="chip ai" style="align-self:flex-start">AI 第一版</span>${pvBox('g'+S.group,'v1',true)}<span class="small muted">點預覽可以放大操作。</span></div>
+        <div class="card ai stack"><span class="chip ai" style="align-self:flex-start">AI 第一版</span>${derived('aiReply')}${pvBox('g'+S.group,'v1',true)}<span class="small muted">點預覽可以放大操作。</span></div>
       </div>
       <div class="card stack"><h3>階段 3 的發現</h3>${derived('s3sum')}</div>
       <div class="flow">${STAGES.filter(s=>s.part===2).map(s=>`<div><span class="t">${s.min} 分鐘</span><b>${s.n} ${esc(s.title)}</b>${{4:'檢視 prompt、反思 AI 的偏好，再請 AI 修正輔具',5:'AI 做不到、要靠我們的是什麼'}[s.n]||''}</div>`).join('')}</div>
@@ -1163,7 +1182,7 @@ function renderPage(){
       <div class="card stack"><span class="kicker">你們第一版的 prompt</span>${derived('prompt1')}</div>
       <div class="card stack">
         ${checks('p2.had','好的 prompt 通常有這些。你們第一版做到了哪幾項？',CHECKLIST,'勾選有做到的。')}
-        ${ta('p2.missing','最想補上哪兩項？為什麼？','','',2)}
+        ${ta('p2.missing','最想補上哪兩項？為什麼？','第一版沒做成功或不完整的話，想想 prompt 少交代了什麼。','',2)}
       </div>
       <div class="card stack">
         <h3>反思：AI 修正時，有沒有特定的偏好？</h3>
@@ -1183,15 +1202,7 @@ function renderPage(){
         <li><div><strong>最後一樣要請 AI 給完整的 HTML。</strong>${reqLine()}</div></li>
         <li><div><strong>上傳或貼上修正後的 HTML，和第一版比一比。</strong></div></li>
       </ol>
-      <div class="card ai stack">
-        <h3>紀錄</h3>
-        ${radios('ai2.llm','用哪個 AI？',LLMS,'通常和第一版一樣。')}
-        ${inp('ai2.llmNote','（選填）版本或模式','')}
-        ${ta('ai2.prompt','修正指令（整段貼上）','來回好幾次的話，全部依序貼上。','',6)}
-        ${ta('ai2.reply','AI 的回答（貼上）','程式碼不用貼在這裡。','',4)}
-        ${saveBar('ai2','儲存紀錄','ai')}
-      </div>
-      ${htmlBox('v2')}
+      ${resultBlock('ai2','v2')}
       <div class="card stack">
         <h3>第一版 vs. 修正版</h3>
         <div class="grid g2"><div class="stack" style="gap:6px"><span class="small muted">第一版</span>${pvBox('g'+S.group,'v1',true)}</div><div class="stack" style="gap:6px"><span class="small muted">修正版</span>${pvBox('g'+S.group,'v2',true)}</div></div>
@@ -1218,6 +1229,11 @@ function renderPage(){
   $$('[data-copyreq]',el).forEach(b=>b.addEventListener('click',()=>copyText(REQUIRED_LINE)));
   const lk=$('#btnLock',el); if(lk) lk.addEventListener('click',lockNotes);
   const ul=$('#btnUnlock',el); if(ul) ul.addEventListener('click',unlockNotes);
+  $$('[data-fromreply]',el).forEach(b=>b.addEventListener('click',()=>{
+    const slot=b.dataset.fromreply, r=String(val(b.dataset.sec+'.reply')||'');
+    if(!/<!doctype html|<html[\s>]|<body[\s>]/i.test(r)){ toast('AI 的回覆裡找不到 HTML 程式碼。沒有的話也沒關係，在「AI 做得怎麼樣」選失敗就好'); return }
+    submitHtml(slot,r,'paste','AI回覆裡的程式碼.html');
+  }));
   bindTest(el);
   $$('[data-k]',el).forEach(f=>{
     const ev=(f.type==='radio'||f.type==='checkbox')?'change':'input';
@@ -1233,9 +1249,9 @@ function summaryText(){
   const d=S.data, t=textFor(S.group), g=k=>plain(getPath(d,k));
   return [`【語法偏誤任務單】${gName(S.group)}`,`語料 ${t.id}（${t.level}）：${t.text}`,'',
     '■ 1 人工標註',g('s1.notes'),`怎麼指導：${g('s1.guide')}`,'',
-    '■ 2 引導 AI',`AI：${g('ai1.llm')} ${g('ai1.llmNote')}`,`prompt：${g('ai1.prompt')}`,`AI 的分析：${g('ai1.reply')}`,`HTML：${getPath(d,'files.v1')?(g('files.v1')||'已存在這台裝置'):'未附'}`,`截圖：${g('shots.v1')}`,'',
+    '■ 2 引導 AI',`AI：${g('ai1.llm')} ${g('ai1.llmNote')}`,`prompt：${g('ai1.prompt')}`,`AI 的分析：${g('ai1.reply')}`,`HTML：${getPath(d,'files.v1')?(g('files.v1')||'已存在這台裝置'):'未附'}`,`結果：${g('ai1.status')} ${g('ai1.statusNote')}`,`截圖：${g('shots.v1')}`,'',
     '■ 3 檢核 AI',`都找到：${g('s3.hit')}`,`AI 漏掉：${g('s3.miss')}`,`AI 誤判：${g('s3.over')}`,`超出程度的詞：${g('s3.coctWords')}`,`分級觀察：${g('s3.coctNote')}`,`AI 分數：${g('s3.score')}`,`想改標註：${g('s3.rethink')}`,'',
-    '■ 4 回饋修正',`prompt 有做到：${g('p2.had')}`,`最想補上：${g('p2.missing')}`,`AI 偏好：${g('p2.bias')}`,`例子：${g('p2.biasNote')}`,`AI：${g('ai2.llm')} ${g('ai2.llmNote')}`,`修正指令：${g('ai2.prompt')}`,`AI 的回答：${g('ai2.reply')}`,`HTML：${getPath(d,'files.v2')?(g('files.v2')||'已存在這台裝置'):'未附'}`,`截圖：${g('shots.v2')}`,`改善與限制：${g('ai2.change')}`,'',
+    '■ 4 回饋修正',`prompt 有做到：${g('p2.had')}`,`最想補上：${g('p2.missing')}`,`AI 偏好：${g('p2.bias')}`,`例子：${g('p2.biasNote')}`,`AI：${g('ai2.llm')} ${g('ai2.llmNote')}`,`修正指令：${g('ai2.prompt')}`,`AI 的回答：${g('ai2.reply')}`,`HTML：${getPath(d,'files.v2')?(g('files.v2')||'已存在這台裝置'):'未附'}`,`結果：${g('ai2.status')} ${g('ai2.statusNote')}`,`截圖：${g('shots.v2')}`,`改善與限制：${g('ai2.change')}`,'',
     '■ 5 一句話',g('end.share'),`重來的 prompt：${g('end.redo')}`].join('\n');
 }
 
@@ -1327,7 +1343,8 @@ function renderTeacherBody(){
         ${notesSummary(d)}<span class="small muted">怎麼指導</span>${ans(G('s1.guide'))}</div>
       <div class="card ai stack"><span class="chip ai" style="align-self:flex-start">階段 2 · 引導 AI · ${esc(G('ai1.llm')||'—')} ${esc(G('ai1.llmNote')||'')}</span>
         <span class="small muted">prompt</span><div class="ans long ${G('ai1.prompt')?'':'empty'}">${esc(G('ai1.prompt'))||'（尚未填寫）'}</div>
-        <span class="small muted">AI 的分析</span><div class="ans long ${G('ai1.reply')?'':'empty'}">${esc(G('ai1.reply'))||'（尚未填寫）'}</div>
+        <span class="small muted">AI 的回覆</span><div class="ans long ${G('ai1.reply')?'':'empty'}">${esc(G('ai1.reply'))||'（尚未填寫）'}</div>
+        <span class="small muted">AI 做得怎麼樣</span>${resultLine('ai1',d)||ans('')}
         ${htmlCard('v1')}</div>
       <div class="card stack"><h3>階段 3 · 檢核 AI <span class="chip acc">AI 分數 ${esc(G('s3.score'))||'—'}</span></h3>
         <div class="grid g2"><div><span class="small muted">都找到</span>${ans(G('s3.hit'))}</div><div><span class="small muted">AI 漏掉</span>${ans(G('s3.miss'))}</div><div><span class="small muted">AI 誤判或改過頭</span>${ans(G('s3.over'))}</div><div><span class="small muted">超出程度的詞</span>${ans(G('s3.coctWords'))}</div><div><span class="small muted">分級觀察</span>${ans(G('s3.coctNote'))}</div><div><span class="small muted">想改標註</span>${ans(G('s3.rethink'))}</div></div></div>
@@ -1337,6 +1354,7 @@ function renderTeacherBody(){
       <div class="card ai stack"><span class="chip ai" style="align-self:flex-start">階段 4-2 · 回饋修正 · ${esc(G('ai2.llm')||'—')} ${esc(G('ai2.llmNote')||'')}</span>
         <span class="small muted">修正指令</span><div class="ans long ${G('ai2.prompt')?'':'empty'}">${esc(G('ai2.prompt'))||'（尚未填寫）'}</div>
         <span class="small muted">AI 的回答</span><div class="ans long ${G('ai2.reply')?'':'empty'}">${esc(G('ai2.reply'))||'（尚未填寫）'}</div>
+        <span class="small muted">AI 做得怎麼樣</span>${resultLine('ai2',d)||ans('')}
         ${htmlCard('v2')}<span class="small muted">改善與限制</span>${ans(G('ai2.change'))}</div>
       <div class="card stack"><h3>階段 5 · 一句話</h3>${ans(G('end.share'))}<span class="small muted">重來一次的 prompt</span>${ans(G('end.redo'))}</div>
       ${tx.ref?`<div class="refbox"><strong>教師參考（草稿）</strong><br>${esc(tx.ref)}</div>`:''}`;
@@ -1363,6 +1381,7 @@ function renderTeacherBody(){
       el.innerHTML=`<div class="page proj">${sw}
         <div class="grid g2"><div class="card stack"><h2>用了哪個 AI</h2>${llm.length?bars(llm,n):'<p class="muted">還沒有資料。</p>'}</div>
           <div class="card stack"><h2>AI 修正時的偏好</h2>${bars(count('p2.bias',BIASES),n)}</div></div>
+        <div class="grid g2">${[['ai1','第一版：AI 做出來了嗎？'],['ai2','修正版：AI 做出來了嗎？']].map(([s,ttl])=>`<div class="card stack"><h2>${ttl}</h2>${bars(RESULTS.map(r=>[resShort(r),all.filter(d=>getPath(d,s+'.status')===r).length]),n)}</div>`).join('')}</div>
         <div class="card stack"><h2>第一版 prompt 做到了什麼</h2><p class="small muted">幾組的第一版 prompt 有這一項（學生自評）。</p>${bars(count('p2.had',CHECKLIST),n)}</div>
         <div class="card stack"><h2>AI 做不到、要靠我們的是……</h2>${Array.from({length:TOTAL_GROUPS},(_,i)=>i+1).map(g=>{ const v=getPath(gdoc(g),'end.share'); return v?`<div class="ans"><strong>第 ${g} 組</strong>　${esc(v)}</div>`:'' }).join('')||'<p class="muted">還沒有組別寫。</p>'}</div>
       </div>`;
@@ -1370,7 +1389,7 @@ function renderTeacherBody(){
       const tx=TEXTS.find(x=>x.id===t.proj)||TEXTS[0], h=heatFor(tx);
       el.innerHTML=`<div class="page proj">${sw}
         <div class="card stack"><div class="kicker">語料 ${tx.id} · ${esc(tx.level)} · ${h.n} 組已標註</div><p class="sent">${h.html}</p><p class="small muted">顏色越深＝越多組標了這個地方；滑鼠停在詞上可以看偏誤類型。</p></div>
-        <div class="card stack"><h2>各組比較</h2><div class="scroll"><table class="tbl"><tr><th>組</th><th>標註</th><th>偏誤類型</th><th>AI</th><th>AI 漏掉</th><th>AI 誤判</th><th>超出程度的詞</th><th>分數</th></tr>${tx.groups.map(g=>{ const d=gdoc(g), notes=getPath(d,'s1.notes')||[], ty={}; notes.forEach(n=>{ if(n.type) ty[n.type]=(ty[n.type]||0)+1 }); const G=k=>esc(getPath(d,k)||'—'); return `<tr><td><strong>${g}</strong></td><td>${notes.length}</td><td>${Object.entries(ty).map(([k,v])=>esc(k)+' '+v).join('、')||'—'}</td><td>${G('ai1.llm')}</td><td>${G('s3.miss')}</td><td>${G('s3.over')}</td><td>${G('s3.coctWords')}</td><td>${G('s3.score')}</td></tr>` }).join('')}</table></div></div>
+        <div class="card stack"><h2>各組比較</h2><div class="scroll"><table class="tbl"><tr><th>組</th><th>標註</th><th>偏誤類型</th><th>AI</th><th>AI 漏掉</th><th>AI 誤判</th><th>超出程度的詞</th><th>分數</th><th>生成（第一版→修正版）</th></tr>${tx.groups.map(g=>{ const d=gdoc(g), notes=getPath(d,'s1.notes')||[], ty={}; notes.forEach(n=>{ if(n.type) ty[n.type]=(ty[n.type]||0)+1 }); const G=k=>esc(getPath(d,k)||'—'); return `<tr><td><strong>${g}</strong></td><td>${notes.length}</td><td>${Object.entries(ty).map(([k,v])=>esc(k)+' '+v).join('、')||'—'}</td><td>${G('ai1.llm')}</td><td>${G('s3.miss')}</td><td>${G('s3.over')}</td><td>${G('s3.coctWords')}</td><td>${G('s3.score')}</td><td>${esc(resShort(getPath(d,'ai1.status'))||'—')} → ${esc(resShort(getPath(d,'ai2.status'))||'—')}</td></tr>` }).join('')}</table></div></div>
         <div class="card stack"><h2>AI 做的輔具：第一版 → 修正版</h2><p class="small muted">點預覽可以放大操作。</p><div class="wall">${tx.groups.map(g=>`<div class="pair"><strong>第 ${g} 組</strong>${['v1','v2'].map(s=>{ const sh=getPath(gdoc(g),'shots.'+s)||[]; return `<div class="stack" style="gap:4px"><span class="small muted">${SLOT_NAME[s]}</span>${getPath(gdoc(g),'files.'+s)||!sh.length?pvBox('g'+g,s,true):shotFigure(sh[0],s,false)}</div>` }).join('')}</div>`).join('')}</div></div>
         <div class="card stack"><h2>一句話</h2>${tx.groups.map(g=>{ const v=getPath(gdoc(g),'end.share'); return `<div class="ans ${v?'':'empty'}"><strong>第 ${g} 組</strong>　${esc(v)||'（尚未填寫）'}</div>` }).join('')}</div>
         ${tx.ref?`<details class="card soft help"><summary>教師參考（草稿）</summary><div class="refbox" style="margin-top:8px">${esc(tx.ref)}</div></details>`:''}
