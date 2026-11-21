@@ -197,6 +197,11 @@ details.help summary{cursor:pointer;font-weight:600;color:var(--accent)}
 .ggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
 .gcell{border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--surface);text-align:left;color:var(--fg)}
 .gcell .n{font-family:var(--font-display);font-size:1.2rem;font-weight:700}
+.gcell.test{border-style:dashed;margin-top:4px;width:100%;max-width:280px}
+.testpick{border:1px dashed var(--line);background:var(--surface);color:var(--fg);border-radius:10px;padding:10px 12px;text-align:left;font-weight:600}
+.testpick span{display:block;font-weight:400;font-size:.78rem;color:var(--muted);margin-top:2px}
+.testpick:hover{border-color:var(--accent)}
+.testpick:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .dots{display:flex;gap:4px;margin-top:6px}
 .dots span{flex:1;height:6px;border-radius:3px;background:var(--line)}
 .dots span.on{background:var(--ok)}
@@ -243,8 +248,12 @@ const BIASES=C.biases||[];
 const LLMS=['ChatGPT','Claude','Gemini','Copilot','其他'];
 const STAGES=C.stages||[];
 const TEXTS=(C.texts||[]).map(t=>{ const tokens=t.toks.split('|'); return Object.assign({},t,{tokens,text:tokens.join('')}) });
-const textFor=g=>TEXTS.find(t=>t.groups.includes(g))||TEXTS[0];
-const LS={ group:'syntask:group', data:'syntask:g', draft:'syntask:draft', teacher:'syntask:teacher', page:'syntask:page'+PART, html:'syntask:html:' };
+// 第 0 組＝測試組：老師示範用，可以換語料、清空重來，不列入全班統計
+const TEST=0;
+const gName=g=>g===TEST?'測試組':'第 '+g+' 組';
+const testTextId=()=>Number(S.view==='student'&&S.group===TEST?S.data.text:getPath(S.t.groups,'g0.text'));
+const textFor=g=>g===TEST?(TEXTS.find(t=>t.id===testTextId())||TEXTS[0]):(TEXTS.find(t=>t.groups.includes(g))||TEXTS[0]);
+const LS={ dev:'syntask:dev', group:'syntask:group', data:'syntask:g', draft:'syntask:draft', teacher:'syntask:teacher', page:'syntask:page'+PART, html:'syntask:html:' };
 const MAXLEN=200000, MAX_HTML=1500000, MAX_SHOTS=4;
 
 // 學生端頁面
@@ -298,6 +307,24 @@ function copyText(text){
   return navigator.clipboard.writeText(text).then(()=>toast('已複製'),fallback);
 }
 const getPath=(o,p)=>p.split('.').reduce((a,k)=>a==null?a:a[k],o);
+// 這台裝置的代號（試算表 history 用來分辨是哪台裝置存的）
+const DEV=lsGet(LS.dev)||(()=>{ const d=uid(); lsSet(LS.dev,d); return d })();
+// ---- 合併：只改有改動的欄位；標註以 id 為單位合併，組員同時新增不會互相蓋掉 ----
+function notesOps(base,draft){
+  const b=new Map((base||[]).map(n=>[n.id,JSON.stringify(n)])), ids=new Set((draft||[]).map(n=>n.id));
+  return { upsert:(draft||[]).filter(n=>b.get(n.id)!==JSON.stringify(n)), del:[...b.keys()].filter(id=>!ids.has(id)) };
+}
+function applyNotes(list,ops){
+  const out=(list||[]).filter(n=>!ops.del.includes(n.id));
+  ops.upsert.forEach(n=>{ const i=out.findIndex(x=>x.id===n.id); if(i>=0) out[i]=n; else out.push(n) });
+  return out;
+}
+function applyPatch(doc,p){
+  const d=JSON.parse(JSON.stringify(doc||{})), cur=Object.assign({},d[p.sec],p.set||{});
+  if(p.notes) cur.notes=applyNotes(cur.notes,p.notes);
+  cur.at=now(); d[p.sec]=cur; d.group=S.group; if(p.text&&!d.text) d.text=p.text; d.updatedAt=now();
+  return d;
+}
 const clone=o=>o==null?o:JSON.parse(JSON.stringify(o));
 const safeUrl=u=>/^https?:\/\//i.test(String(u||''))?String(u):'';
 const noop=()=>{};
@@ -324,6 +351,8 @@ function plain(v){
 function makeLocalStore(){
   return { mode:'local',
     async saveGroup(id,data){ lsSet(LS.data+id.slice(1),data) },
+    async patchGroup(id,p){ const d=applyPatch(lsGet(LS.data+id.slice(1))||S.data,p); lsSet(LS.data+id.slice(1),d); return d },
+    async resetGroup(id,text){ const d={group:TEST,text,resetAt:now(),updatedAt:now()}; lsSet(LS.data+id.slice(1),d); ['v1','v2'].forEach(s=>lsDel(LS.html+id+':'+s)); return d },
     async saveSettings(){ throw new Error('local') },
     watchGroup(){ return noop }, watchGroups(){ return noop }, watchSettings(){ return noop },
     async saveHtml(o){
@@ -373,15 +402,17 @@ function makeSheetStore(url){
   // HTML 與截圖清單由試算表另外管理；這裡只更新快取
   function patch(id,key,val){ const d=cache.groups[id]||{}; cache.groups[id]=Object.assign({},d,{[key]:val}) }
   return { mode:'sheet',
-    async saveGroup(id,data){ await post({type:'group',id,data}); cache.groups[id]=clone(data); notify() },
+    async saveGroup(id,data){ await post({type:'group',id,data,by:DEV}); cache.groups[id]=clone(data); notify() },
+    async patchGroup(id,p){ const j=await post(Object.assign({type:'patch',id,by:DEV},p)); cache.groups[id]=clone(j.doc); notify(); return clone(j.doc) },
+    async resetGroup(id,text){ const j=await post({type:'reset',id,text,by:DEV}); cache.groups[id]=clone(j.doc); notify(); return clone(j.doc) },
     async saveSettings(data){ await post({type:'settings',id:'class',data}); cache.settings.class=clone(data); notify() },
     watchGroup(id,cb){ if(!L.group.has(id)) L.group.set(id,new Set()); return sub(L.group.get(id),cb,cache.groups[id]&&clone(cache.groups[id])) },
     watchGroups:cb=>sub(L.groups,cb,cache.groups),
     watchSettings:cb=>sub(L.settings,cb,cache.settings.class||{}),
-    async saveHtml(o){ const j=await post({type:'html',id:o.group,slot:o.slot,name:o.name,source:o.source,html:o.html}); patch(o.group,'files',j.files||{}); return j.files||{} },
+    async saveHtml(o){ const j=await post({type:'html',id:o.group,slot:o.slot,name:o.name,source:o.source,html:o.html,by:DEV}); patch(o.group,'files',j.files||{}); return j.files||{} },
     async getHtml(group,slot){ const j=await get('action=html&id='+encodeURIComponent(group)+'&slot='+encodeURIComponent(slot)); return String(j.html||'') },
-    async upload(o){ const j=await post({type:'upload',id:o.group,slot:o.slot,name:o.name,mime:o.mime,data:o.data}); patch(o.group,'shots',j.shots||{}); return j.shots||{} },
-    async unshot(group,slot,fileId){ const j=await post({type:'unshot',id:group,slot,fileId}); patch(group,'shots',j.shots||{}); return j.shots||{} },
+    async upload(o){ const j=await post({type:'upload',id:o.group,slot:o.slot,name:o.name,mime:o.mime,data:o.data,by:DEV}); patch(o.group,'shots',j.shots||{}); return j.shots||{} },
+    async unshot(group,slot,fileId){ const j=await post({type:'unshot',id:group,slot,fileId,by:DEV}); patch(group,'shots',j.shots||{}); return j.shots||{} },
     ping:()=>get('action=ping'),
   };
 }
@@ -395,38 +426,51 @@ const S={
 };
 { const p=lsGet(LS.page); if(typeof p==='number'&&p>=0&&p<PAGES.length) S.page=p }
 const remote=()=>S.mode==='sheet';
+const hasGroup=()=>S.group!=null;
 const val=k=>(k in S.draft)?S.draft[k]:getPath(S.data,k);
 const isLocked=()=>!!getPath(S.data,'s1.locked');
 
 // ====== 草稿與儲存 ======
 // 打字的內容先放草稿（也存在這台裝置），按「儲存」才送給老師；換頁、重新整理都不會不見。
 function loadGroup(){
-  S.data=S.group?(lsGet(LS.data+S.group)||{}):{};
-  S.draft=S.group?(lsGet(LS.draft+S.group)||{}):{};
+  S.data=hasGroup()?(lsGet(LS.data+S.group)||{}):{};
+  S.draft=hasGroup()?(lsGet(LS.draft+S.group)||{}):{};
   S.sel=new Set(); S.paste={};
 }
-let draftT; const flushDrafts=()=>{ clearTimeout(draftT); if(S.group) lsSet(LS.draft+S.group,S.draft) };
+let draftT; const flushDrafts=()=>{ clearTimeout(draftT); if(hasGroup()) lsSet(LS.draft+S.group,S.draft) };
 function saveDrafts(){ clearTimeout(draftT); draftT=setTimeout(flushDrafts,300) }
 // 關掉分頁、切到別的 App 時，馬上把草稿存起來
 window.addEventListener('pagehide',flushDrafts);
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') flushDrafts() });
 function setDraft(k,v){ S.draft[k]=v; saveDrafts() }
+// 只送出「這台裝置有改動的欄位」，伺服器再合併進最新的答案；組員同時儲存不同題目不會互相蓋掉。
+// 沒存成功的話，草稿留著（框線維持橘色），再按一次儲存就好。
 async function saveSection(sec,extra){
-  if(!S.group) return false;
-  const v={};
-  FIELDS[sec].forEach(f=>{ let x=val(sec+'.'+f); if(typeof x==='string') x=x.trim(); if(x!==undefined) v[f]=x });
-  Object.assign(v,extra||{}); v.at=now();
-  S.data=Object.assign({},S.data,{[sec]:Object.assign({},S.data[sec],v),group:S.group,text:textFor(S.group).id,updatedAt:now()});
-  Object.keys(S.draft).filter(k=>k.startsWith(sec+'.')).forEach(k=>delete S.draft[k]);
-  lsSet(LS.draft+S.group,S.draft); lsSet(LS.data+S.group,S.data);
-  $$('[data-k^="'+sec+'."]').forEach(el=>el.classList.remove('dirty'));
+  if(!hasGroup()) return false;
+  const set={}, sent={};
+  FIELDS[sec].forEach(f=>{ const k=sec+'.'+f; if(f==='notes'||!(k in S.draft)) return;
+    let x=S.draft[k]; if(typeof x==='string') x=x.trim(); set[f]=x; sent[k]=JSON.stringify(S.draft[k]) });
+  Object.assign(set,extra||{});
+  const patch={sec,set,text:textFor(S.group).id};
+  if(sec==='s1'&&'s1.notes' in S.draft){ patch.notes=notesOps(getPath(S.data,'s1.notes'),S.draft['s1.notes']); sent['s1.notes']=JSON.stringify(S.draft['s1.notes']) }
+  const gid='g'+S.group;
   showSaved(sec,remote()?false:undefined);
   let ok=true;
-  if(remote()){
-    try{ await S.store.saveGroup('g'+S.group,S.data); showSaved(sec,true); toast('已儲存') }
-    catch(e){ ok=false; showSaved(sec); toast('沒有存到老師那裡，先存在這台裝置；請再按一次儲存') }
-  } else toast('已存在這台裝置');
-  renderRail();
+  try{
+    let doc;
+    try{ doc=await S.store.patchGroup(gid,patch) }
+    catch(e){ if(!remote()||!/type 不合法/.test(e&&e.message||'')) throw e;
+      doc=applyPatch(S.data,patch); await S.store.saveGroup(gid,doc) }   // 後端還是舊版：整份存
+    if(gid!=='g'+S.group) return false;   // 存的時候換組了
+    S.data=doc; lsSet(LS.data+S.group,S.data);
+    // 只清掉送出去、而且送出後沒有再改的草稿
+    Object.keys(sent).forEach(k=>{ if(k in S.draft&&JSON.stringify(S.draft[k])===sent[k]) delete S.draft[k] });
+    flushDrafts();
+    $$('[data-k^="'+sec+'."]').forEach(el=>{ if(!(el.dataset.k in S.draft)) el.classList.remove('dirty') });
+    if(sec==='s1'&&!('s1.notes' in S.draft)) $$('#notesList .dirty').forEach(el=>el.classList.remove('dirty'));
+    showSaved(sec,true); toast(remote()?'已儲存':'已存在這台裝置');
+  }catch(e){ ok=false; showSaved(sec); toast('沒有存到：'+(e&&e.message||e)+'。內容還在，請再按一次儲存') }
+  renderRail(); syncFields();
   return ok;
 }
 function showSaved(sec,server){
@@ -450,19 +494,28 @@ async function initStore(){
   S.store=store; S.mode=store.mode; renderModePill();
   if(remote()){
     store.watchSettings(cls=>{ S.cls=cls||{}; renderBanner(); renderTeacherStageBar() });
-    if(S.group) subscribeGroup();
+    if(hasGroup()) subscribeGroup();
     if(S.view==='teacher') subscribeTeacher();
   }
   if(S.view==='student') refreshDynamic();
 }
 function subscribeGroup(){
-  if(!S.store||!remote()||!S.group) return;
+  if(!S.store||!remote()||!hasGroup()) return;
   if(S.groupUnsub) S.groupUnsub();
   S.groupUnsub=S.store.watchGroup('g'+S.group,data=>{
     // 只接受不比手上舊的資料，避免輪詢時把剛存的答案蓋掉
     if(S.data.updatedAt&&data.updatedAt&&data.updatedAt<S.data.updatedAt) return;
-    const wasLocked=isLocked();
+    const wasLocked=isLocked(), oldNotes=getPath(S.data,'s1.notes')||[];
+    const wasReset=!!data.resetAt&&data.resetAt!==S.data.resetAt;
     S.data=data; lsSet(LS.data+S.group,S.data);
+    if(wasReset){ afterReset(); return }
+    if(isLocked()){ Object.keys(S.draft).filter(k=>k==='s1.notes'||k==='s1.guide').forEach(k=>delete S.draft[k]) }
+    else if('s1.notes' in S.draft){
+      // 組員存了新的標註：把自己還沒存的改動接到最新的標註上
+      const base=getPath(data,'s1.notes')||[], mine=applyNotes(base,notesOps(oldNotes,S.draft['s1.notes']));
+      if(JSON.stringify(mine)===JSON.stringify(base)) delete S.draft['s1.notes']; else S.draft['s1.notes']=mine;
+    }
+    saveDrafts();
     if(S.view!=='student') return;
     const focused=document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#pageBody');
     if(wasLocked!==isLocked()&&!focused) renderPage(); else syncFields();
@@ -483,8 +536,10 @@ function syncFields(){
     const v=getPath(S.data,k);
     els.forEach(e=>{ if(e.type==='checkbox') e.checked=Array.isArray(v)&&v.includes(e.value); else if(e.type==='radio') e.checked=String(v)===e.value; else e.value=v==null?'':v });
   });
-  const inNotes=document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#notesList');
-  if(!('s1.notes' in S.draft)&&!inNotes){ renderTokLine(); renderSelBar(); renderNotes() }
+  // 只有正在標註欄位裡打字時先不重畫（重畫會打斷輸入）；選類型、點按鈕不影響
+  const ae=document.activeElement, inNotes=ae&&ae.closest&&ae.closest('#notesList')&&ae.matches('input[type=text],textarea');
+  const nsig=JSON.stringify([notesNow(),isLocked()]), nl=$('#notesList');
+  if(nl&&!inNotes&&nl.dataset.sig!==nsig){ renderTokLine(); renderSelBar(); renderNotes() }
   $$('[data-derived]',root).forEach(el=>{ const f=DERIVED[el.dataset.derived]; if(f) el.innerHTML=f() });
   SECS.forEach(s=>showSaved(s));
   refreshDynamic();
@@ -523,7 +578,7 @@ function openOverlay(html,title,filename){
   document.addEventListener('keydown',onKey); document.body.appendChild(o); o.querySelector('[data-x]').focus();
 }
 const SLOT_NAME={v1:'第一版',v2:'修正版'};
-const fileName=(g,slot)=>`第${g}組_${SLOT_NAME[slot]}.html`;
+const fileName=(g,slot)=>`${gName(g).replace(/ /g,'')}_${SLOT_NAME[slot]}.html`;
 // 預覽框：<div data-pv="g3:v1"> 之後由 fillPreviews 放入 iframe
 function pvBox(gid,slot,mini){ return `<div class="pv ${mini?'mini':''}" data-pv="${gid}:${slot}" ${mini?'tabindex="0" role="button" aria-label="放大看"':''}><div class="pvmsg">載入中…</div></div>` }
 function filesOf(gid){ return gid==='g'+S.group&&S.view==='student'?(S.data.files||{}):((S.t.groups[gid]||{}).files||{}) }
@@ -539,7 +594,7 @@ function fillPreviews(root){
       if(box.dataset.sig!==key) return;
       box.innerHTML=''; box.appendChild(frame(html));
       if(box.classList.contains('mini')&&!box.dataset.bound){ box.dataset.bound='1';
-        const open=()=>{ const m=filesOf(gid)[slot]; fetchHtml(gid,slot,m).then(h=>openOverlay(h,`第 ${g} 組 · ${SLOT_NAME[slot]}`,fileName(g,slot))) };
+        const open=()=>{ const m=filesOf(gid)[slot]; fetchHtml(gid,slot,m).then(h=>openOverlay(h,`${gName(g)} · ${SLOT_NAME[slot]}`,fileName(g,slot))) };
         box.addEventListener('click',open); box.addEventListener('keydown',e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); open() } });
       }
     }).catch(e=>{ if(box.dataset.sig===key){ box.innerHTML=`<div class="pvmsg">讀不到檔案（${esc(e&&e.message||e)}）</div>`; box.dataset.sig='' } });
@@ -553,8 +608,8 @@ function renderHtmlBox(slot){
   const sig=JSON.stringify([meta&&meta.savedAt,busy,S.mode]); if(box.dataset.sig===sig) return; box.dataset.sig=sig;
   const gid='g'+S.group;
   box.innerHTML=`
-    <div class="row between"><h3>AI 做的輔具 · ${SLOT_NAME[slot]}（HTML）</h3><span class="status ${meta?'ok':''}" id="hbStat-${slot}">${busy?'儲存中…':meta?`已存${meta.local?'在這台裝置':'給老師'} · ${esc(meta.source==='paste'?'貼上':'上傳')} · ${kb(meta.size||0)} · ${fmtTime(meta.savedAt)}`:'還沒上傳'}</span></div>
-    <p class="small muted">兩種方式選一種就好。重新上傳或貼上，會取代舊的。${S.mode==='local'?'<br><strong>注意：</strong>現在沒有連到老師的試算表，檔案只會存在這台裝置。':''}</p>
+    <div class="row between"><h3>AI 做的輔具 · ${SLOT_NAME[slot]}（HTML）</h3><span class="status ${meta?'ok':''}" id="hbStat-${slot}">${busy?'儲存中…':meta?`已存${meta.local?'在這台裝置':'給老師'}${meta.versions>1?' · 第 '+meta.versions+' 次':''} · ${esc(meta.source==='paste'?'貼上':'上傳')} · ${kb(meta.size||0)} · ${fmtTime(meta.savedAt)}`:'還沒上傳'}</span></div>
+    <p class="small muted">兩種方式選一種就好。可以重新上傳或貼上，畫面上顯示最新的一版${S.mode==='sheet'?'，舊版老師那裡也會留存':''}。${S.mode==='local'?'<br><strong>注意：</strong>現在沒有連到老師的試算表，檔案只會存在這台裝置。':''}</p>
     <div class="grid g2">
       <div class="f">① 上傳 HTML 檔<span class="hint">AI 讓你們下載了 .html 檔的話，用這個。</span>
         <div class="drop" data-drop tabindex="0"><input type="file" accept=".html,.htm,text/html" hidden data-file><button type="button" class="btn sm ai" data-pick ${busy?'disabled':''}>選擇檔案</button><span class="small muted">或把檔案拖進來</span></div></div>
@@ -573,7 +628,7 @@ function renderHtmlBox(slot){
   const ta=$('[data-paste]',box); ta.addEventListener('input',()=>{ S.paste[slot]=ta.value });
   $('[data-pastesave]',box).addEventListener('click',()=>{ const h=ta.value; if(!h.trim()){ toast('先把程式碼貼上'); ta.focus(); return } submitHtml(slot,h,'paste','貼上的程式碼.html') });
   const big=$('[data-big]',box), dl=$('[data-dl]',box);
-  if(big) big.addEventListener('click',()=>fetchHtml(gid,slot,meta).then(h=>openOverlay(h,`第 ${S.group} 組 · ${SLOT_NAME[slot]}`,fileName(S.group,slot))).catch(e=>toast('讀不到檔案')));
+  if(big) big.addEventListener('click',()=>fetchHtml(gid,slot,meta).then(h=>openOverlay(h,`${gName(S.group)} · ${SLOT_NAME[slot]}`,fileName(S.group,slot))).catch(e=>toast('讀不到檔案')));
   if(dl) dl.addEventListener('click',()=>fetchHtml(gid,slot,meta).then(h=>download(fileName(S.group,slot),h,'text/html;charset=utf-8')).catch(e=>toast('讀不到檔案')));
   fillPreviews(box); renderShots(slot,true);
 }
@@ -663,16 +718,17 @@ const app=$('#app');
 document.title=(PART===1?'語法偏誤任務單 · 網站 1':'語法偏誤任務單 · 網站 2');
 function render(){
   if(S.view==='teacher'&&S.t.unlocked){ renderTeacher(); return }
-  if(!S.group){ S.view='login'; renderLogin(); return }
+  if(!hasGroup()){ S.view='login'; renderLogin(); return }
   S.view='student'; renderStudent();
 }
 function renderLogin(){
   app.innerHTML=`<main class="wrap"><div class="page">
     <div><div class="kicker">語言學概論 · 語法 · 網站 ${PART}</div><h1 style="margin-top:6px">${esc(C.title||'')}<br><span style="font-size:.7em">${esc(C.subtitle||'')}</span></h1>
-      <p class="lead" style="margin-top:8px">${PART===1?'點你們的組別就可以開始。':'這是第二部分。點你們的組別，會接著網站 1 的答案繼續。'}全組共用一份答案，任何人按「儲存」，組員的畫面都會一起更新。</p></div>
+      <p class="lead" style="margin-top:8px">${PART===1?'點你們的組別就可以開始。':'這是第二部分。點你們的組別，會接著網站 1 的答案繼續。'}全組共用一份答案，可以好幾台裝置一起填：任何人按「儲存」，組員的畫面都會一起更新。</p></div>
     <div class="card stack">
       <h2>你是第幾組？</h2>
       <div class="gpick">${Array.from({length:TOTAL_GROUPS},(_,i)=>i+1).map(g=>{ const t=textFor(g); return `<button type="button" data-g="${g}"><strong>${g}</strong><span>語料 ${t.id} · ${esc(t.level)}</span></button>` }).join('')}</div>
+      <button type="button" class="testpick" data-g="${TEST}">🧪 測試組 <span>老師示範用 · 可換語料、清空重來 · 不列入全班統計</span></button>
       <p class="status" id="modePill"></p>
     </div>
     <details class="card soft help">
@@ -708,7 +764,7 @@ function renderStudent(){
   app.innerHTML=`
   <div class="top"><div class="top-in">
     <div class="bar">
-      <span class="gname">第 ${S.group} 組 · 語料 ${t.id}（${esc(t.level)}）<span class="chip acc" style="margin-left:6px;vertical-align:middle">網站 ${PART}</span></span>
+      <span class="gname">${gName(S.group)} · 語料 ${t.id}（${esc(t.level)}）<span class="chip acc" style="margin-left:6px;vertical-align:middle">網站 ${PART}</span></span>
       <div class="row" style="gap:6px"><span class="pill" id="modeMini"></span><button class="btn ghost sm" id="btnCopyAll">複製本組答案</button><button class="btn ghost sm" id="btnLeave">換組</button></div>
     </div>
     <nav class="rail" id="rail" aria-label="任務頁"></nav>
@@ -797,7 +853,7 @@ function renderSelBar(){
 }
 function renderNotes(){
   const box=$('#notesList'); if(!box) return;
-  const notes=notesNow(), locked=isLocked();
+  const notes=notesNow(), locked=isLocked(); box.dataset.sig=JSON.stringify([notes,locked]);
   box.innerHTML=notes.length?notes.map((n,i)=>`<div class="card note stack" data-ni="${i}">
       <div class="row between"><div class="row" style="gap:8px"><span class="nn">${i+1}</span><strong class="mk">${esc(n.text)}</strong></div>${locked?'':`<button class="btn sm ghost" data-del="${i}">刪除</button>`}</div>
       <div class="f">偏誤類型<div class="opts" role="radiogroup">${TYPES.map(ty=>`<label><input type="radio" name="ty-${esc(n.id)}" data-nf="type" value="${esc(ty)}" ${n.type===ty?'checked':''} ${locked?'disabled':''}><span>${esc(ty)}</span></label>`).join('')}</div></div>
@@ -825,6 +881,33 @@ function notesSummary(d,tokens){
   const notes=getPath(d,'s1.notes')||[];
   return notes.length?`<ol class="nlist">${notes.map((n,i)=>`<li><span class="nn">${i+1}</span><span><strong class="mk">${esc(n.text)}</strong> <span class="chip mark">${esc(n.type||'？')}</span> → ${esc(n.fix||'')}${n.why?`<br><span class="small muted">${esc(n.why)}</span>`:''}</span></li>`).join('')}</ol>`:'<p class="small muted">（沒有標註）</p>';
 }
+// ====== 測試組 ======
+function testCard(){
+  const teacher=S.view==='teacher';
+  if(!teacher&&S.group!==TEST) return '';
+  const cur=textFor(TEST).id;
+  return `<div class="card soft stack" style="border-style:dashed"><strong>🧪 測試組</strong>
+    <p class="small muted">老師示範、測試用，不列入全班統計。換語料或按「清空重來」，會清掉測試組的答案和 HTML（試算表的 history 工作表仍保留每一次的紀錄）。</p>
+    <div class="row">${TEXTS.map(x=>`<button class="btn sm ${x.id===cur?'':'ghost'}" data-testtext="${x.id}">語料 ${x.id}（${esc(x.level)}）</button>`).join('')}<button class="btn sm ghost" data-testreset>清空重來</button></div></div>`;
+}
+function bindTest(root){
+  $$('[data-testtext]',root).forEach(b=>b.addEventListener('click',()=>{ const id=+b.dataset.testtext; if(id!==textFor(TEST).id) resetTest(id,'換成語料 '+id+'，會清掉測試組目前的答案和 HTML。確定嗎？') }));
+  $$('[data-testreset]',root).forEach(b=>b.addEventListener('click',()=>resetTest(textFor(TEST).id,'清掉測試組所有的答案和 HTML，重新開始。確定嗎？')));
+}
+async function resetTest(text,msg){
+  if(!confirm(msg)) return;
+  try{
+    const d=await S.store.resetGroup('g'+TEST,text);
+    lsSet(LS.data+TEST,d); lsDel(LS.draft+TEST);
+    if(S.view==='student'&&S.group===TEST){ S.data=d; afterReset() } else { S.t.groups=Object.assign({},S.t.groups,{['g'+TEST]:d}); S.t.sig=''; renderTeacherBody(); toast('測試組已清空') }
+  }catch(e){ toast(/type 不合法/.test(e&&e.message||'')?'後端還是舊版：請先在 Apps Script 部署新版本':'沒有成功：'+(e&&e.message||e)) }
+}
+// 測試組被清空（自己或別台裝置按的）：草稿、選取都清掉，回到第一頁
+function afterReset(){
+  S.draft={}; S.sel=new Set(); S.paste={}; flushDrafts(); lsSet(LS.data+S.group,S.data);
+  if(S.view!=='student') return;
+  S.page=0; lsSet(LS.page,0); renderStudent(); toast('測試組已清空，可以重新開始');
+}
 async function lockNotes(){
   if(!notesNow().length){ toast('先在階段 1 至少標出一個偏誤'); go(PAGES.findIndex(p=>p.id==='s1')); return }
   if(!confirm('鎖定之後，階段 1 的標註就不能再修改。確定要鎖定嗎？')) return;
@@ -848,7 +931,8 @@ function renderPage(){
   let h='';
   if(p.id==='start'){
     h=`<div class="page">
-      ${head('第 '+S.group+' 組 · 網站 1','今天要做什麼？')}
+      ${head(gName(S.group)+' · 網站 1','今天要做什麼？')}
+      ${testCard()}
       ${textCard(false)}
       <p>這是一位<strong>${esc(t.level)}</strong>華語學習者寫的短文。今天你們要先用自己的專業找出語法偏誤，再請 AI 分析並做一個教學輔具，最後檢查 AI 做得好不好。</p>
       <div class="flow">
@@ -858,6 +942,7 @@ function renderPage(){
         <ul style="margin:0;padding-left:1.2em" class="small">
           <li>階段 1 <strong>不能問 AI</strong>。標註完要先「鎖定」，才能進到階段 2。</li>
           <li>每一頁寫完記得按「儲存」。有人儲存後，組員的畫面會自動更新；框線變橘色＝還沒儲存。</li>
+          <li>可以分工：不同人同時填不同的題目、新增不同的標註都沒問題。同一格請一個人打字就好，兩個人同時改同一格，會以最後按儲存的為準。</li>
           <li>階段 4、5 在網站 2，老師會告訴你們什麼時候打開。</li>
         </ul></div>
     </div>`;
@@ -956,7 +1041,8 @@ function renderPage(){
   }
   else if(p.id==='recap'){
     h=`<div class="page">
-      ${head('第 '+S.group+' 組 · 網站 2','回顧：你們和 AI 做了什麼')}
+      ${head(gName(S.group)+' · 網站 2','回顧：你們和 AI 做了什麼')}
+      ${testCard()}
       ${textCard(true)}
       <div class="grid g2">
         <div class="card human stack"><span class="chip human" style="align-self:flex-start">你們的標註</span>${derived('ours')}</div>
@@ -1027,6 +1113,7 @@ function renderPage(){
   $$('[data-copytext]',el).forEach(b=>b.addEventListener('click',()=>copyText(t.text)));
   $$('[data-copyreq]',el).forEach(b=>b.addEventListener('click',()=>copyText(REQUIRED_LINE)));
   const lk=$('#btnLock',el); if(lk) lk.addEventListener('click',lockNotes);
+  bindTest(el);
   $$('[data-k]',el).forEach(f=>{
     const ev=(f.type==='radio'||f.type==='checkbox')?'change':'input';
     f.addEventListener(ev,()=>{ const k=f.dataset.k; setDraft(k,readField(k,el)); if(f.type!=='radio'&&f.type!=='checkbox') f.classList.add('dirty'); showSaved(k.split('.')[0]) });
@@ -1039,7 +1126,7 @@ function renderPage(){
 }
 function summaryText(){
   const d=S.data, t=textFor(S.group), g=k=>plain(getPath(d,k));
-  return [`【語法偏誤任務單】第 ${S.group} 組`,`語料 ${t.id}（${t.level}）：${t.text}`,'',
+  return [`【語法偏誤任務單】${gName(S.group)}`,`語料 ${t.id}（${t.level}）：${t.text}`,'',
     '■ 1 人工標註',g('s1.notes'),`怎麼指導：${g('s1.guide')}`,'',
     '■ 2 引導 AI',`AI：${g('ai1.llm')} ${g('ai1.llmNote')}`,`prompt：${g('ai1.prompt')}`,`AI 的分析：${g('ai1.reply')}`,`HTML：${getPath(d,'files.v1')?(g('files.v1')||'已存在這台裝置'):'未附'}`,`截圖：${g('shots.v1')}`,'',
     '■ 3 檢核 AI',`都找到：${g('s3.hit')}`,`AI 漏掉：${g('s3.miss')}`,`AI 誤判：${g('s3.over')}`,`超出程度的詞：${g('s3.coctWords')}`,`分級觀察：${g('s3.coctNote')}`,`AI 分數：${g('s3.score')}`,`想改標註：${g('s3.rethink')}`,'',
@@ -1112,9 +1199,10 @@ function renderTeacherBody(){
       <div class="qrs">${[1,2].map(n=>PART_URL[n]?`<div class="qr"><div class="code" data-qr="${esc(PART_URL[n])}"></div><div class="stack" style="gap:6px;min-width:0"><strong>網站 ${n}</strong><span class="small muted">${n===1?'階段 1–3：標註、引導 AI、檢核':'階段 4–5：回饋修正、一句話'}</span><a class="small" href="${esc(PART_URL[n])}" target="_blank" rel="noopener" style="word-break:break-all">${esc(PART_URL[n])}</a><button class="btn sm ghost" data-copyurl="${n}" style="align-self:flex-start">複製網址</button></div></div>`:'').join('')}</div>
     </div>
     <div class="card stack">
-      <div class="row between"><h2>各組進度</h2><span class="small muted">已開始 ${Object.keys(t.groups).length} / ${TOTAL_GROUPS} 組</span></div>
+      <div class="row between"><h2>各組進度</h2><span class="small muted">已開始 ${Object.keys(t.groups).filter(id=>id!=='g'+TEST).length} / ${TOTAL_GROUPS} 組</span></div>
       <div class="ggrid">${Array.from({length:TOTAL_GROUPS},(_,i)=>i+1).map(g=>{ const d=gdoc(g), tx=textFor(g); return `<button class="gcell" data-g="${g}"><div class="n">第 ${g} 組</div><div class="small muted">語料 ${tx.id} · ${esc(tx.level)}${d.updatedAt?' · '+fmtTime(d.updatedAt):''}</div><div class="dots" title="${DOTS.map(x=>x[0]).join(' / ')}">${DOTS.map(([,s])=>`<span class="${secDone(s,d)?'on':''}"></span>`).join('')}</div></button>` }).join('')}</div>
       <p class="small muted">六格依序是：${DOTS.map(x=>x[0]).join('、')}。點一組看答案。</p>
+      ${(()=>{ const d=gdoc(TEST), tx=textFor(TEST); return `<button class="gcell test" data-g="${TEST}"><div class="n">🧪 測試組</div><div class="small muted">語料 ${tx.id} · ${esc(tx.level)}${d.updatedAt?' · '+fmtTime(d.updatedAt):''} · 不列入統計</div><div class="dots">${DOTS.map(([,s])=>`<span class="${secDone(s,d)?'on':''}"></span>`).join('')}</div></button>` })()}
     </div>`;
     $$('[data-g]',el).forEach(b=>b.addEventListener('click',()=>{ t.sel=+b.dataset.g; t.tab='group'; renderTeacherBody() }));
     $$('[data-copyurl]',el).forEach(b=>b.addEventListener('click',()=>copyText(PART_URL[b.dataset.copyurl])));
@@ -1124,9 +1212,11 @@ function renderTeacherBody(){
     const g=t.sel, tx=textFor(g), d=gdoc(g), G=k=>getPath(d,k), notes=G('s1.notes')||[];
     const marked=new Map(); notes.forEach((n,ni)=>(n.toks||[]).forEach(i=>marked.set(i,ni)));
     const shotsOf=slot=>(G('shots.'+slot)||[]).length?`<div class="shots">${G('shots.'+slot).map(x=>shotFigure(x,slot,false)).join('')}</div>`:'';
-    const htmlCard=slot=>`<div class="pvbar"><span class="small muted">HTML ${SLOT_NAME[slot]}${G('files.'+slot)?` · ${esc(G('files.'+slot).source==='paste'?'貼上':'上傳')} · ${kb(G('files.'+slot).size||0)} · ${fmtTime(G('files.'+slot).savedAt)}`:''}</span>${G('files.'+slot)?`<span class="row" style="gap:6px"><button class="btn sm ghost" data-big="${slot}">放大</button><button class="btn sm ghost" data-dl="${slot}">下載</button>${safeUrl(G('files.'+slot).url)?`<a class="btn sm ghost" href="${esc(G('files.'+slot).url)}" target="_blank" rel="noopener">雲端硬碟</a>`:''}</span>`:''}</div>${pvBox('g'+g,slot,false)}${shotsOf(slot)}`;
+    const htmlCard=slot=>`<div class="pvbar"><span class="small muted">HTML ${SLOT_NAME[slot]}${G('files.'+slot)?`${G('files.'+slot).versions>1?' · 第 '+G('files.'+slot).versions+' 次（顯示最新）':''} · ${esc(G('files.'+slot).source==='paste'?'貼上':'上傳')} · ${kb(G('files.'+slot).size||0)} · ${fmtTime(G('files.'+slot).savedAt)}`:''}</span>${G('files.'+slot)?`<span class="row" style="gap:6px"><button class="btn sm ghost" data-big="${slot}">放大</button><button class="btn sm ghost" data-dl="${slot}">下載</button>${safeUrl(G('files.'+slot).url)?`<a class="btn sm ghost" href="${esc(G('files.'+slot).url)}" target="_blank" rel="noopener">雲端硬碟</a>`:''}</span>`:''}</div>${pvBox('g'+g,slot,false)}${shotsOf(slot)}`;
     el.innerHTML=`
-      <div class="row"><select id="selG" style="width:auto">${Array.from({length:TOTAL_GROUPS},(_,i)=>`<option value="${i+1}" ${g===i+1?'selected':''}>第 ${i+1} 組</option>`).join('')}</select><span class="small muted">語料 ${tx.id} · ${esc(tx.level)} · ${d.updatedAt?'最後更新 '+fmtTime(d.updatedAt):'尚未開始'}</span></div>
+      <div class="row"><select id="selG" style="width:auto">${Array.from({length:TOTAL_GROUPS},(_,i)=>`<option value="${i+1}" ${g===i+1?'selected':''}>第 ${i+1} 組</option>`).join('')}<option value="${TEST}" ${g===TEST?'selected':''}>🧪 測試組</option></select><span class="small muted">語料 ${tx.id} · ${esc(tx.level)} · ${d.updatedAt?'最後更新 '+fmtTime(d.updatedAt):'尚未開始'}</span></div>
+      ${g===TEST?testCard():''}
+      <p class="small muted">這裡顯示每組最新的答案。每一次儲存、每一版 HTML 都另外記在試算表的 history 工作表（含舊版檔案連結）。</p>
       <div class="card human stack"><div class="row between"><span class="chip human">階段 1 · 人工標註（${notes.length} 個）</span><span class="small muted">${G('s1.locked')?'🔒 '+fmtTime(G('s1.lockedAt'))+' 鎖定':'未鎖定'}</span></div>
         <p class="sent">${tx.tokens.map((x,i)=>`<span class="tok ${marked.has(i)?'noted':''}">${x.trim()?esc(x):'&nbsp;'}</span>`).join('')}</p>
         ${notesSummary(d)}<span class="small muted">怎麼指導</span>${ans(G('s1.guide'))}</div>
@@ -1146,7 +1236,8 @@ function renderTeacherBody(){
       <div class="card stack"><h3>階段 5 · 一句話</h3>${ans(G('end.share'))}<span class="small muted">重來一次的 prompt</span>${ans(G('end.redo'))}</div>
       ${tx.ref?`<div class="refbox"><strong>教師參考（草稿）</strong><br>${esc(tx.ref)}</div>`:''}`;
     $('#selG').addEventListener('change',e=>{ t.sel=+e.target.value; renderTeacherBody() });
-    $$('[data-big]',el).forEach(b=>b.addEventListener('click',()=>{ const s=b.dataset.big; fetchHtml('g'+g,s,G('files.'+s)).then(h=>openOverlay(h,`第 ${g} 組 · ${SLOT_NAME[s]}`,fileName(g,s))).catch(()=>toast('讀不到檔案')) }));
+    bindTest(el);
+    $$('[data-big]',el).forEach(b=>b.addEventListener('click',()=>{ const s=b.dataset.big; fetchHtml('g'+g,s,G('files.'+s)).then(h=>openOverlay(h,`${gName(g)} · ${SLOT_NAME[s]}`,fileName(g,s))).catch(()=>toast('讀不到檔案')) }));
     $$('[data-dl]',el).forEach(b=>b.addEventListener('click',()=>{ const s=b.dataset.dl; fetchHtml('g'+g,s,G('files.'+s)).then(h=>download(fileName(g,s),h,'text/html;charset=utf-8')).catch(()=>toast('讀不到檔案')) }));
     fillPreviews(el);
   }
@@ -1199,7 +1290,7 @@ async function exportJSON(){
 }
 
 // ====== 啟動 ======
-if(S.group) loadGroup();
+if(hasGroup()) loadGroup();
 render();
 initStore();
 })();

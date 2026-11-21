@@ -4,19 +4,24 @@
  * 用途：讓 GitHub Pages 上的兩個學生網站把答案存到老師的 Google 試算表，
  *       並把學生交的 HTML 成品與截圖存到老師的 Google 雲端硬碟。設定步驟見 backend/README.md。
  *
- * 試算表會自動建立四個工作表：
- *   groups   ：每組一列（id、updatedAt、各欄位的可讀內容、完整 json）
+ * 試算表會自動建立五個工作表：
+ *   groups   ：每組一列，永遠是「最新」的答案（id、updatedAt、各欄位的可讀內容、完整 json）
+ *   history  ：每一次儲存、上傳、重設都新增一列，只增不改（時間、組別、動作、哪一段、裝置、摘要、json）
  *   settings ：教師廣播（目前階段）
- *   files    ：每組每一版 HTML 一列（組別、版本 v1/v2、雲端硬碟檔案 ID、網址、檔名、大小、方式、時間）
+ *   files    ：每組每一版 HTML 一列，指向「最新」的檔案（組別、版本 v1/v2、檔案 ID、網址、檔名、大小、方式、時間、第幾次上傳）
  *   uploads  ：每張截圖一列（組別、版本、檔案 ID、網址、檔名、上傳時間、是否移除）
- * 檔案存在試算表旁邊的資料夾「語法偏誤AI輔具_成品」。
+ * 檔案存在試算表旁邊的資料夾「語法偏誤AI輔具_成品」。每次交 HTML 都是新檔案，舊版不會被覆蓋。
+ * 第 0 組是「測試組」：老師示範用，可以換語料、一鍵清空重來；不會出現在全班統計裡。
  *
  * 介面（網站裡的 makeSheetStore 就是對這些端點說話）：
  *   GET  ?action=ping                         → {ok}
  *   GET  ?action=all                          → {ok, groups:{g1:{...}}, settings:{class:{...}}}
  *   GET  ?action=group&id=g4                  → 同上，但 groups 只有 g4
  *   GET  ?action=html&id=g4&slot=v1           → {ok, html}
- *   POST {type:'group'|'settings', id, data}                         → {ok}
+ *   POST {type:'patch', id:'g4', sec:'s3', set:{...}, notes:{upsert,del}, text, by} → {ok, doc}
+ *        只改這一段裡「有改動的欄位」，組員同時儲存不同欄位不會互相蓋掉
+ *   POST {type:'reset', id:'g0', text, by}                           → {ok, doc}（只限測試組）
+ *   POST {type:'group'|'settings', id, data}                         → {ok}（整份覆蓋；舊版網站用）
  *   POST {type:'html', id:'g4', slot:'v1', name, source, html}       → {ok, files}
  *   POST {type:'upload', id:'g4', slot:'v1', name, mime, data(base64)} → {ok, shots}
  *   POST {type:'unshot', id:'g4', slot:'v1', fileId}                 → {ok, shots}
@@ -29,6 +34,17 @@ const SHEET_GROUPS = 'groups';
 const SHEET_SETTINGS = 'settings';
 const SHEET_FILES = 'files';
 const SHEET_UPLOADS = 'uploads';
+const SHEET_HISTORY = 'history';
+const TEST_GROUP = 'g0';
+// 每一段可以存的欄位（和網站裡的 FIELDS 一致）
+const SEC_FIELDS = {
+  s1: ['notes', 'guide', 'locked', 'lockedAt'],
+  ai1: ['llm', 'llmNote', 'prompt', 'reply'],
+  s3: ['hit', 'miss', 'over', 'coctWords', 'coctNote', 'score', 'rethink'],
+  p2: ['had', 'missing', 'bias', 'biasNote'],
+  ai2: ['llm', 'llmNote', 'prompt', 'reply', 'change'],
+  end: ['share', 'redo'],
+};
 const UPLOAD_FOLDER_NAME = '語法偏誤AI輔具_成品';
 // true：截圖設為「知道連結的人可以檢視」，教師端才看得到縮圖。HTML 檔不會對外分享。
 const SHARE_UPLOADS_WITH_LINK = true;
@@ -77,14 +93,17 @@ function doPost(e) {
     const type = String(body.type || ''), id = String(body.id || '');
     if (!/^[A-Za-z0-9_-]{1,40}$/.test(id)) throw new Error('id 不合法');
     lock.waitLock(20000);
+    if (type === 'patch') return json_(patchGroup_(id, body));
+    if (type === 'reset') return json_(resetGroup_(id, body));
     if (type === 'group' || type === 'settings') {
       if (typeof body.data !== 'object' || body.data === null) throw new Error('缺少 data');
       upsert_(type === 'group' ? SHEET_GROUPS : SHEET_SETTINGS, id, body.data);
+      if (type === 'group') log_(id, 'group', '整份', body.by, '整份覆蓋', body.data);
       return json_({ ok: true, id: id });
     }
     if (type === 'html') return json_(saveHtml_(id, body));
     if (type === 'upload') return json_(saveUpload_(id, body));
-    if (type === 'unshot') return json_(removeUpload_(id, String(body.slot || ''), String(body.fileId || '')));
+    if (type === 'unshot') return json_(removeUpload_(id, String(body.slot || ''), String(body.fileId || ''), body.by));
     throw new Error('type 不合法');
   } catch (err) {
     return json_({ ok: false, error: String(err && err.message || err) });
@@ -93,9 +112,91 @@ function doPost(e) {
   }
 }
 
-function checkGroupSlot_(groupId, slot) {
+function checkGroup_(groupId) {
   if (!/^g\d{1,3}$/.test(groupId)) throw new Error('組別不合法');
+}
+function checkGroupSlot_(groupId, slot) {
+  checkGroup_(groupId);
   if (SLOTS.indexOf(slot) < 0) throw new Error('版本不合法');
+}
+const by_ = b => String((b && b.by) || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 24);
+const nowIso_ = () => new Date().toISOString();
+
+// ---------- 答案：只合併有改動的欄位 ----------
+function docWithExtras_(groupId, doc) {
+  return Object.assign({}, doc, extraFor_(groupId));
+}
+
+function patchGroup_(groupId, body) {
+  checkGroup_(groupId);
+  const sec = String(body.sec || '');
+  const allowed = SEC_FIELDS[sec];
+  if (!allowed) throw new Error('段落不合法');
+  const set = (body.set && typeof body.set === 'object') ? body.set : {};
+  Object.keys(set).forEach(k => { if (allowed.indexOf(k) < 0) throw new Error('欄位不合法：' + k); });
+  const ops = (body.notes && typeof body.notes === 'object') ? body.notes : null;
+  if (ops && sec !== 's1') throw new Error('只有階段 1 有標註');
+
+  const sh = sheet_(SHEET_GROUPS);
+  const doc = readDocs_(sh)[groupId] || { group: Number(groupId.slice(1)) };
+  delete doc.files; delete doc.shots;
+  const cur = Object.assign({}, doc[sec] || {});
+  if (sec === 's1' && cur.locked && (ops || 'notes' in set || 'guide' in set)) throw new Error('標註已經鎖定，不能再改');
+
+  Object.keys(set).forEach(k => { cur[k] = set[k]; });
+  let changed = 0, removed = 0;
+  if (ops) {
+    let notes = Array.isArray(cur.notes) ? cur.notes.slice() : [];
+    const del = Array.isArray(ops.del) ? ops.del.map(String) : [];
+    removed = notes.filter(n => del.indexOf(String(n.id)) >= 0).length;
+    notes = notes.filter(n => del.indexOf(String(n.id)) < 0);
+    (Array.isArray(ops.upsert) ? ops.upsert : []).forEach(n => {
+      if (!n || typeof n !== 'object' || !n.id) return;
+      const i = notes.findIndex(x => String(x.id) === String(n.id));
+      if (i >= 0) notes[i] = n; else notes.push(n);
+      changed++;
+    });
+    cur.notes = notes;
+  }
+  const at = nowIso_();
+  cur.at = at;
+  doc[sec] = cur;
+  doc.group = Number(groupId.slice(1));
+  const text = Number(body.text);
+  if (text && !doc.text) doc.text = text;
+  doc.updatedAt = at;
+  upsert_(SHEET_GROUPS, groupId, doc);
+
+  const parts = Object.keys(set).map(k => k + '：' + readable_(set[k]).slice(0, 300));
+  if (ops) parts.push('標註：新增或修改 ' + changed + '、刪除 ' + removed + '，共 ' + cur.notes.length + ' 個');
+  log_(groupId, 'save', sec, body.by, parts.join('\n'), { set: set, notes: ops });
+  return { ok: true, doc: docWithExtras_(groupId, doc) };
+}
+
+// 測試組一鍵清空：答案清掉、HTML 與截圖從清單拿掉（雲端硬碟裡的檔案保留，history 也保留）
+function resetGroup_(groupId, body) {
+  if (groupId !== TEST_GROUP) throw new Error('只有測試組可以清空');
+  const at = nowIso_();
+  const doc = { group: 0, text: Number(body.text) || 1, resetAt: at, updatedAt: at };
+  const fs = sheet_(SHEET_FILES);
+  for (let r = fs.getLastRow(); r >= 2; r--) if (String(fs.getRange(r, 1).getValue()) === groupId) fs.deleteRow(r);
+  const us = sheet_(SHEET_UPLOADS);
+  if (us.getLastRow() > 1) {
+    const rows = us.getRange(2, 1, us.getLastRow() - 1, 7).getValues();
+    rows.forEach((r, i) => { if (String(r[0]) === groupId && !r[6]) us.getRange(i + 2, 7).setValue('reset ' + at); });
+  }
+  upsert_(SHEET_GROUPS, groupId, doc);
+  log_(groupId, 'reset', '全部', body.by, '清空測試組，語料 ' + doc.text, doc);
+  return { ok: true, doc: docWithExtras_(groupId, doc) };
+}
+
+// ---------- 歷程：只增不改 ----------
+function log_(groupId, kind, what, by, summary, obj) {
+  const sh = sheet_(SHEET_HISTORY);
+  const row = [nowIso_(), groupId, kind, what, by_({ by: by }), cell_(summary || '')];
+  const json = JSON.stringify(obj == null ? {} : obj);
+  for (let i = 0; i === 0 || i < json.length; i += CELL_MAX) row.push('~' + json.slice(i, i + CELL_MAX));
+  writeRow_(sh, null, row);
 }
 
 // ---------- HTML 成品 ----------
@@ -107,18 +208,18 @@ function saveHtml_(groupId, body) {
   if (html.length > MAX_HTML_CHARS) throw new Error('HTML 太大');
   const source = body.source === 'paste' ? 'paste' : 'upload';
   const orig = String(body.name || '').replace(/[\\/:*?"<>|\r\n]/g, '_').slice(0, 80);
-  const fname = '第' + groupId.slice(1) + '組_' + (slot === 'v1' ? '第一版' : '修正版') + '.html';
   const sh = sheet_(SHEET_FILES);
   const r = findFileRow_(sh, groupId, slot);
-  let file = null;
-  if (r) {
-    try { file = DriveApp.getFileById(String(sh.getRange(r, 3).getValue())); if (file.isTrashed()) file = null; } catch (_) { file = null; }
-  }
-  if (file) file.setContent(html);
-  else file = folder_().createFile(Utilities.newBlob(html, 'text/html', fname));
-  const row = [groupId, slot, file.getId(), file.getUrl(), orig || fname, html.length, source, new Date().toISOString()];
-  if (r) sh.getRange(r, 1, 1, row.length).setValues([row]); else sh.appendRow(row);
+  const version = r ? (Number(sh.getRange(r, 9).getValue()) || 1) + 1 : 1;
+  const stamp = Utilities.formatDate(new Date(), 'Asia/Taipei', 'MMdd-HHmmss');
+  const fname = (groupId === TEST_GROUP ? '測試組' : '第' + groupId.slice(1) + '組') + '_' + (slot === 'v1' ? '第一版' : '修正版') + '_第' + version + '次_' + stamp + '.html';
+  // 每次都存成新檔案，舊版留在資料夾裡（history 工作表有每一版的連結）
+  const file = folder_().createFile(Utilities.newBlob(html, 'text/html', fname));
+  const row = [groupId, slot, file.getId(), file.getUrl(), orig || fname, html.length, source, nowIso_(), version];
+  if (r) sh.getRange(r, 1, 1, row.length).setValues([row]); else writeRow_(sh, null, row);
   refreshGroupRow_(groupId);
+  log_(groupId, 'html', slot, body.by, '第 ' + version + ' 次（' + (source === 'paste' ? '貼上' : '上傳') + '）' + file.getUrl(),
+    { fileId: file.getId(), url: file.getUrl(), name: orig || fname, size: html.length, source: source, version: version });
   return { ok: true, files: readFiles_()[groupId] || {} };
 }
 
@@ -141,10 +242,10 @@ function findFileRow_(sh, groupId, slot) {
 function readFiles_() {
   const sh = sheet_(SHEET_FILES), out = {};
   if (sh.getLastRow() < 2) return out;
-  sh.getRange(2, 1, sh.getLastRow() - 1, 8).getValues().forEach(r => {
+  sh.getRange(2, 1, sh.getLastRow() - 1, 9).getValues().forEach(r => {
     if (!r[0]) return;
     const g = String(r[0]);
-    (out[g] = out[g] || {})[String(r[1])] = { id: String(r[2]), url: String(r[3]), name: String(r[4]), size: Number(r[5]) || 0, source: String(r[6]), savedAt: String(r[7]) };
+    (out[g] = out[g] || {})[String(r[1])] = { id: String(r[2]), url: String(r[3]), name: String(r[4]), size: Number(r[5]) || 0, source: String(r[6]), savedAt: String(r[7]), versions: Number(r[8]) || 1 };
   });
   return out;
 }
@@ -170,10 +271,11 @@ function saveUpload_(groupId, body) {
   }
   sheet_(SHEET_UPLOADS).appendRow([groupId, slot, file.getId(), file.getUrl(), name, new Date().toISOString(), '']);
   refreshGroupRow_(groupId);
+  log_(groupId, 'shot', slot, body.by, file.getUrl(), { fileId: file.getId(), url: file.getUrl(), name: name });
   return { ok: true, shots: readUploads_()[groupId] || {} };
 }
 
-function removeUpload_(groupId, slot, fileId) {
+function removeUpload_(groupId, slot, fileId, by) {
   checkGroupSlot_(groupId, slot);
   const sh = sheet_(SHEET_UPLOADS);
   if (sh.getLastRow() > 1) {
@@ -182,6 +284,7 @@ function removeUpload_(groupId, slot, fileId) {
       if (String(rows[i][0]) === groupId && String(rows[i][1]) === slot && String(rows[i][2]) === fileId && !rows[i][6]) {
         sh.getRange(i + 2, 7).setValue('removed ' + new Date().toISOString());
         try { DriveApp.getFileById(fileId).setTrashed(true); } catch (_) {}  // 丟到垃圾桶，30 天內可救回
+        log_(groupId, 'unshot', slot, by, '移除截圖 ' + String(rows[i][3]), { fileId: fileId });
       }
     }
   }
@@ -224,7 +327,8 @@ function json_(obj) {
 
 function headers_(name) {
   if (name === SHEET_GROUPS) return ['id', 'updatedAt'].concat(GROUP_COLUMNS.map(c => c[0]), ['json']);
-  if (name === SHEET_FILES) return ['group', 'slot', 'fileId', 'url', 'name', 'size', 'source', 'savedAt'];
+  if (name === SHEET_FILES) return ['group', 'slot', 'fileId', 'url', 'name', 'size', 'source', 'savedAt', 'versions'];
+  if (name === SHEET_HISTORY) return ['time', 'group', 'kind', 'what', 'by', 'summary', 'json'];
   if (name === SHEET_UPLOADS) return ['group', 'slot', 'fileId', 'url', 'name', 'uploadedAt', 'removed'];
   return ['id', 'updatedAt', 'json'];
 }
@@ -250,6 +354,10 @@ function sheet_(name) {
       sh.setFrozenRows(1);
       Object.keys(docs).forEach(id => writeRow_(sh, null, rowFor_(name, id, docs[id])));
     }
+  } else {
+    // files／uploads／history 只會在後面加欄位，表頭補上就好
+    const have = sh.getRange(1, 1, 1, want.length).getValues()[0].map(String);
+    if (!want.every((h, i) => have[i] === h)) sh.getRange(1, 1, 1, want.length).setValues([want]);
   }
   return sh;
 }
