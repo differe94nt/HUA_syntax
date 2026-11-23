@@ -12,6 +12,15 @@ window.SYN_CONFIG = {
   teacherCode: 'syn2026',          // 教師端通關碼
   totalGroups: 15,                 // 全班組數
   coctUrl: 'https://coct.naer.edu.tw/segment.jsp',   // 華語分級斷詞工具
+  // 網站最下方的設計者資訊（每一頁都有，學生端與教師端都會顯示）
+  author: {
+    name: '王伯雅',
+    email: 'differe94nt@gmail.com',
+    links: [
+      ['個人網站', 'https://diff94.github.io/'],
+      ['現職網站', 'https://ntu-chai.github.io/#team'],
+    ],
+  },
   // 教師端 QR code 連到的兩個學生網址
   part1Url: 'https://differe94nt.github.io/HUA_syntax/dist/part1.html',
   part2Url: 'https://differe94nt.github.io/HUA_syntax/dist/part2.html',
