@@ -985,8 +985,8 @@ function renderSelBar(){
 function renderNotes(){
   const box=$('#notesList'); if(!box) return;
   const notes=notesNow(), locked=isLocked(); box.dataset.sig=JSON.stringify([notes,locked]);
-  box.innerHTML=notes.length?notes.map((n,i)=>`<div class="card note stack" data-ni="${i}">
-      <div class="row between"><div class="row" style="gap:8px"><span class="nn">${i+1}</span><strong class="mk">${esc(n.text)}</strong></div>${locked?'':`<button class="btn sm ghost" data-del="${i}">刪除</button>`}</div>
+  box.innerHTML=notes.length?notes.map((n,i)=>`<div class="card note stack" data-nid="${esc(n.id)}">
+      <div class="row between"><div class="row" style="gap:8px"><span class="nn">${i+1}</span><strong class="mk">${esc(n.text)}</strong></div>${locked?'':`<button class="btn sm ghost" data-del="${esc(n.id)}">刪除</button>`}</div>
       <div class="f">偏誤類型<div class="opts" role="radiogroup">${TYPES.map(ty=>`<label><input type="radio" name="ty-${esc(n.id)}" data-nf="type" value="${esc(ty)}" ${n.type===ty?'checked':''} ${locked?'disabled':''}><span>${esc(ty)}</span></label>`).join('')}</div></div>
       <div class="grid g2">
         <label class="f">要改成什麼？<input type="text" data-nf="fix" value="${esc(n.fix||'')}" placeholder="寫出正確的說法" ${locked?'readonly':''}></label>
@@ -994,18 +994,19 @@ function renderNotes(){
       </div></div>`).join('')
     :`<div class="card soft"><p class="small muted">還沒有標註。在上面的語料點選有問題的詞，再按「＋ 新增標註」。</p></div>`;
   if(locked) return;
+  // 用 id 找是哪一個標註：組員存檔後順序可能變了，不能用畫面上的位置
   $$('.note',box).forEach(card=>{
-    const i=+card.dataset.ni, toks=(notesNow()[i]||{}).toks||[];
+    const nid=card.dataset.nid, toks=(notesNow().find(x=>x.id===nid)||{}).toks||[];
     card.addEventListener('mouseenter',()=>toks.forEach(t=>{ const b=$('#tokLine .tok[data-i="'+t+'"]'); if(b) b.classList.add('hl') }));
     card.addEventListener('mouseleave',()=>$$('#tokLine .tok.hl').forEach(b=>b.classList.remove('hl')));
     $$('[data-nf]',card).forEach(f=>f.addEventListener(f.type==='radio'?'change':'input',()=>{
-      const notes=clone(notesNow()); if(!notes[i]) return; notes[i][f.dataset.nf]=f.value; setDraft('s1.notes',notes);
+      const notes=clone(notesNow()), n=notes.find(x=>x.id===nid); if(!n) return; n[f.dataset.nf]=f.value; setDraft('s1.notes',notes);
       if(f.type!=='radio') f.classList.add('dirty'); showSaved('s1');
     }));
   });
   $$('[data-del]',box).forEach(b=>b.addEventListener('click',()=>{
     if(!confirm('要刪除這個標註嗎？')) return;
-    const notes=clone(notesNow()); notes.splice(+b.dataset.del,1); setDraft('s1.notes',notes); renderTokLine(); renderNotes(); showSaved('s1');
+    setDraft('s1.notes',notesNow().filter(x=>x.id!==b.dataset.del)); renderTokLine(); renderNotes(); showSaved('s1');
   }));
 }
 function notesSummary(d,tokens){
